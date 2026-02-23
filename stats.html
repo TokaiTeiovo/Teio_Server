@@ -2,41 +2,53 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Teio Server - 战绩中心</title>
+    <title>Teio Server - 战绩大厅</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; }
+        :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; --hltv-blue: #4a90e2; --hltv-red: #ff5252; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        .match-card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 30px; border-top: 4px solid var(--main-green); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .match-info { display: flex; justify-content: space-between; margin-bottom: 15px; color: var(--main-green); font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #333; }
-        th { font-size: 0.9em; color: #888; }
-        .rating-val { font-weight: bold; color: var(--main-green); }
-        .mvp { color: #ffeb3b; } /* 战神位金色 */
+        .container { max-width: 1100px; margin: auto; }
+        
+        /* 比赛头部信息 */
+        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; }
+        .match-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; gap: 10px; }
+        .match-id { color: #888; font-size: 0.9em; font-weight: bold; }
+        
+        /* 核心比分显示 */
+        .score-display { display: flex; align-items: center; gap: 30px; font-size: 2.2em; font-weight: 800; font-family: 'Arial Black', sans-serif; }
+        .team-score-name { font-size: 0.5em; color: #fff; text-transform: uppercase; width: 150px; text-align: center; }
+        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; }
+
+        /* 分栏布局 */
+        .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .teams-container { grid-template-columns: 1fr; } }
+
+        .team-section { background: #252525; border-radius: 4px; overflow: hidden; }
+        .team-title { padding: 12px; font-weight: bold; background: #333; display: flex; justify-content: space-between; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
+        td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
+        .name-cell { text-align: left; font-weight: bold; padding-left: 15px; }
+        .rating-cell { font-weight: bold; color: var(--main-green); }
+        
         .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="btn-back">← 返回主页</a>
-        <h1>🏆 Teio 战绩大厅</h1>
-        <div id="display-area">正在同步全服战绩...</div>
+        <div id="display-area">正在解析战绩...</div>
     </div>
 
 <script>
-    // Rating 1.0 计算逻辑
+    // Rating 1.0 计算 (基于你提供的 CSV 字段)
     function getRating(p) {
-        const rounds = 24; // 默认为 MR12 全场
+        const rounds = 24; 
         const kpr = p.kills / rounds;
         const dpr = p.deaths / rounds;
         const adr = p.damage / rounds;
-        
-        // 核心公式
         let score = ( (kpr/0.679) + ((1-dpr)/0.683) + (adr/90) ) / 3;
-        
-        // 多杀奖励 (2k/3k/4k/5k)
         const bonus = (p.enemy2ks*0.02 + p.enemy3ks*0.06 + p.enemy4ks*0.12 + p.enemy5ks*0.25) / rounds;
         return (score + bonus).toFixed(2);
     }
@@ -49,41 +61,57 @@
             area.innerHTML = '';
 
             for (const m of matches) {
-                const csvText = await fetch(`data/${m.file}`).then(r => r.text());
+                const csvRes = await fetch(`data/${m.file}`);
+                if (!csvRes.ok) continue;
+
+                const csvText = await csvRes.text();
                 const players = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(p => p.name);
                 
-                players.forEach(p => p.calculatedRating = getRating(p));
-                players.sort((a, b) => b.calculatedRating - a.calculatedRating);
+                // 数据分组
+                const teams = {};
+                players.forEach(p => {
+                    const t = p.team || "未知";
+                    if (!teams[t]) teams[t] = [];
+                    p.rtg = getRating(p);
+                    teams[t].push(p);
+                });
 
-                let rows = '';
-                players.forEach((p, index) => {
-                    rows += `
-                        <tr>
-                            <td class="${index === 0 ? 'mvp' : ''}">${p.name} ${index === 0 ? '👑' : ''}</td>
-                            <td>${p.kills} / ${p.deaths}</td>
-                            <td>${(p.damage/24).toFixed(1)}</td>
-                            <td>${p.enemy3ks}/${p.enemy4ks}/${p.enemy5ks}</td>
-                            <td class="rating-val">${p.calculatedRating}</td>
-                        </tr>
-                    `;
+                const tNames = Object.keys(teams);
+                const teamA = tNames[0];
+                const teamB = tNames[1] || "Waiting...";
+                
+                // 渲染比赛卡片
+                let teamsHtml = '';
+                tNames.forEach((tn, idx) => {
+                    teams[tn].sort((a,b) => b.rtg - a.rtg);
+                    let rows = '';
+                    teams[tn].forEach(p => {
+                        rows += `<tr><td class="name-cell">${p.name}</td><td>${p.kills}-${p.deaths}</td><td>${(p.damage/24).toFixed(1)}</td><td class="rating-cell">${p.rtg}</td></tr>`;
+                    });
+                    teamsHtml += `
+                        <div class="team-section">
+                            <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">
+                                <span>${tn.replace('team_', '')}</span>
+                                <span style="font-size:0.8em; color:#888;">Avg Rating: ${(teams[tn].reduce((a,b)=>a+parseFloat(b.rtg),0)/teams[tn].length).toFixed(2)}</span>
+                            </div>
+                            <table><tr><th>PLAYER</th><th>K-D</th><th>ADR</th><th>RTG</th></tr>${rows}</table>
+                        </div>`;
                 });
 
                 area.innerHTML += `
                     <div class="match-card">
-                        <div class="match-info">
-                            <span>场次 ID: #${m.id}</span>
-                            <span>模式: MatchZy 竞技</span>
+                        <div class="match-header">
+                            <div class="match-id">MATCH ID #${m.id}</div>
+                            <div class="score-display">
+                                <div class="team-score-name">${teamA.replace('team_', '')}</div>
+                                <div class="score-val">${m.score || "VS"}</div>
+                                <div class="team-score-name">${teamB.replace('team_', '')}</div>
+                            </div>
                         </div>
-                        <table>
-                            <tr><th>选手</th><th>K / D</th><th>ADR</th><th>3k/4k/5k</th><th>Rating</th></tr>
-                            ${rows}
-                        </table>
-                    </div>
-                `;
+                        <div class="teams-container">${teamsHtml}</div>
+                    </div>`;
             }
-        } catch (err) {
-            area.innerHTML = "战绩同步中... 请确保已上传 matches.json 及 CSV 文件。";
-        }
+        } catch (e) { area.innerHTML = "战绩加载失败，请检查文件路径。"; }
     }
     init();
 </script>
