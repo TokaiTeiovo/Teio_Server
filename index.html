@@ -10,19 +10,29 @@
         .container { max-width: 900px; margin: 0 auto; }
         header { text-align: center; padding: 40px 0; }
         h1 { color: var(--main-green); font-size: 2.5em; margin-bottom: 10px; }
-        .action-box { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
-        .btn { display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; font-size: 1.1em; transition: transform 0.2s, background 0.2s; text-align: center; }
-        .btn:hover { transform: translateY(-3px); }
-        .btn-connect { background: linear-gradient(135deg, #2e7d32, #43a047); box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3); }
-        .btn-skin { background: linear-gradient(135deg, #1565c0, #1e88e5); box-shadow: 0 4px 15px rgba(21, 101, 192, 0.3); }
+        
+        /* 调整操作区布局以容纳3个按钮 */
+        .action-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        
+        .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; text-align: center; }
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+        .btn small { font-weight: normal; font-size: 0.8em; margin-top: 5px; opacity: 0.9; }
+
+        .btn-multi { background: linear-gradient(135deg, #2e7d32, #43a047); } /* 全网线路：深绿 */
+        .btn-unicom { background: linear-gradient(135deg, #558b2f, #689f38); } /* 联通线路：浅绿 */
+        .btn-skin { background: linear-gradient(135deg, #1565c0, #1e88e5); } /* 皮肤仓库：蓝色 */
+
+        /* 复制指令区 */
+        .copy-section { background: #000; border: 1px dashed var(--main-green); border-radius: 10px; padding: 15px; margin-bottom: 30px; text-align: center; }
+        .copy-box { cursor: pointer; color: var(--main-green); font-family: monospace; font-size: 1.1em; padding: 8px; display: inline-block; transition: background 0.2s; }
+        .copy-box:hover { background: #1a1a1a; }
+
         .section { background: var(--card-bg); border-radius: 15px; padding: 25px; margin-bottom: 30px; border-left: 5px solid var(--main-green); }
         h2 { border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; font-size: 1.4em; }
         .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
         .cmd-item { background: #252525; padding: 12px; border-radius: 8px; border: 1px solid #333; }
         .cmd-name { color: var(--main-green); font-family: monospace; font-size: 1.1em; display: block; }
         .cmd-desc { font-size: 0.85em; color: var(--text-gray); }
-        footer { text-align: center; color: #555; padding: 20px; font-size: 0.9em; }
-        @media (max-width: 600px) { .action-box { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -30,53 +40,60 @@
 <div class="container">
     <header>
         <h1>Teio CS2 练习服</h1>
+        <p>多线接入 · 丝滑练习体验</p>
     </header>
 
     <div class="action-box">
-        <a href="steam://run/730//+connect%2060.26.220.79:27020/" class="btn btn-connect">
-            🚀 连接服务器<br>
+        <a href="steam://run/730//+connect%20103.91.208.41:62917/" class="btn btn-multi">
+            🌐 全网线路直连 (推荐)<br><small>电信 / 移动 / 联通用户</small>
         </a>
+
+        <a href="steam://run/730//+connect%2060.26.220.79:27020/" class="btn btn-unicom">
+            🚀 联通专属线路<br><small>仅限联通用户使用</small>
+        </a>
+
         <a href="https://inventory.cstrike.app" target="_blank" class="btn btn-skin">
-            🎨 打开皮肤修改仓库<br>
+            🎨 皮肤修改仓库<br><small>inventory.cstrike.app</small>
         </a>
+    </div>
+
+    <div class="copy-section">
+        <p style="margin-top:0; font-size:0.9em; color:#888;">如果上方按钮点击没反应，请点击下方指令复制并进游戏粘贴：</p>
+        <div class="copy-box" onclick="copyText('connect 103.91.208.41:62917')">
+            点击复制：connect 103.91.208.41:62917
+        </div>
     </div>
 
     <div class="section">
         <h2>📌 常用比赛指令</h2>
-        <p style="font-size: 0.9em; color: var(--text-gray);">前缀支持使用 . 或 ! [cite: 1, 2]</p>
+        [cite_start]<p style="font-size: 0.9em; color: var(--text-gray);">支持前缀 . 或 ! [cite: 1, 2]</p>
         <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">将玩家标记为准备就绪 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.unready / .ur</span><span class="cmd-desc">取消准备状态 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">双方输入可恢复当前回合备份 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.stay / .switch</span><span class="cmd-desc">刀人局获胜后选择阵营 [cite: 2]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">标记准备就绪 [cite: 2]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.unready</span><span class="cmd-desc">取消准备状态 [cite: 2]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停 [cite: 2]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">恢复当前回合备份 [cite: 2]</span></div>
         </div>
     </div>
 
     <div class="section">
         <h2>🛠️ 练习模式专用 (.prac)</h2>
-        <p style="font-size: 0.9em; color: var(--text-gray);">输入 .prac 开启练习模式后方可使用 [cite: 6]</p>
+        [cite_start]<p style="font-size: 0.9em; color: var(--text-gray);">需先输入 .prac 开启模式 [cite: 6]</p>
         <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上一个投掷物 [cite: 5]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除机器人 [cite: 3, 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">开启无敌或防闪光干扰 [cite: 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">开启/关闭投掷物轨迹预览 [cite: 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.clear</span><span class="cmd-desc">清除场上所有的烟雾和火焰 [cite: 5]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.last</span><span class="cmd-desc">传送到上一次投掷的位置 [cite: 5]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上个投掷物 [cite: 5]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除 Bot [cite: 3, 4]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">无敌或防闪光干扰 [cite: 4]</span></div>
+            [cite_start]<div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">投掷物轨迹预览 [cite: 4]</span></div>
         </div>
     </div>
-
-    <div class="section">
-        <h2>🛡️ 管理员维护指令</h2>
-        <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.start / .restart</span><span class="cmd-desc">强制开始或重置比赛 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.map <地图名></span><span class="cmd-desc">更换服务器当前地图 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.roundknife</span><span class="cmd-desc">开启/关闭刀人局模式 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.rcon <命令></span><span class="cmd-desc">向服务器发送控制台指令 [cite: 7]</span></div>
-        </div>
-    </div>
-
 </div>
+
+<script>
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert("指令已复制！进入游戏按 ~ 键粘贴即可连接。");
+    });
+}
+</script>
 
 </body>
 </html>
