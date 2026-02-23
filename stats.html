@@ -2,106 +2,90 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Teio 服务器 - 战绩中心</title>
+    <title>Teio Server - 战绩中心</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
-        h1 { text-align: center; color: var(--main-green); }
-        .match-card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 30px; border-top: 4px solid var(--main-green); }
-        .match-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #333; }
-        th { color: var(--main-green); }
-        .rating-box { font-weight: bold; padding: 4px 8px; border-radius: 4px; }
-        .high { background: #2e7d32; }
-        .low { background: #c62828; }
-        .btn-back { display: inline-block; margin-bottom: 20px; color: var(--main-green); text-decoration: none; }
+        .container { max-width: 900px; margin: auto; }
+        .match-card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 30px; border-top: 4px solid var(--main-green); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .match-info { display: flex; justify-content: space-between; margin-bottom: 15px; color: var(--main-green); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #333; }
+        th { font-size: 0.9em; color: #888; }
+        .rating-val { font-weight: bold; color: var(--main-green); }
+        .mvp { color: #ffeb3b; } /* 战神位金色 */
+        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="btn-back">← 返回主页</a>
-        <h1>📊 历史战绩排行 (Rating 1.0)</h1>
-        <div id="matches-list">正在加载战绩历史...</div>
+        <h1>🏆 Teio 战绩大厅</h1>
+        <div id="display-area">正在同步全服战绩...</div>
     </div>
 
-    <script>
-        // Rating 计算公式 (接近 HLTV 1.0)
-        // 假设 MR12 (24回合)，如果CSV里没给回合数，默认取24
-        function calcRating(p) {
-            const rounds = 24; 
-            const adr = p.damage / rounds;
-            const kpr = p.kills / rounds;
-            const dpr = p.deaths / rounds;
-            
-            // 基础 Rating 公式
-            let rating = ( (kpr / 0.679) + ( (1 - dpr) / 0.683 ) + (adr / 90) ) / 3;
-            
-            // 多杀加成
-            const multiKillBonus = (p.enemy2ks * 0.05 + p.enemy3ks * 0.15 + p.enemy4ks * 0.3 + p.enemy5ks * 0.5) / rounds;
-            return (rating + multiKillBonus).toFixed(2);
-        }
+<script>
+    // Rating 1.0 计算逻辑
+    function getRating(p) {
+        const rounds = 24; // 默认为 MR12 全场
+        const kpr = p.kills / rounds;
+        const dpr = p.deaths / rounds;
+        const adr = p.damage / rounds;
+        
+        // 核心公式
+        let score = ( (kpr/0.679) + ((1-dpr)/0.683) + (adr/90) ) / 3;
+        
+        // 多杀奖励 (2k/3k/4k/5k)
+        const bonus = (p.enemy2ks*0.02 + p.enemy3ks*0.06 + p.enemy4ks*0.12 + p.enemy5ks*0.25) / rounds;
+        return (score + bonus).toFixed(2);
+    }
 
-        async function loadMatches() {
-            try {
-                // 读取 matches.json (由本地脚本生成)
-                const response = await fetch('data/matches.json');
-                const matchList = await response.json();
+    async function init() {
+        const area = document.getElementById('display-area');
+        try {
+            const res = await fetch('data/matches.json');
+            const matches = await res.json();
+            area.innerHTML = '';
+
+            for (const m of matches) {
+                const csvText = await fetch(`data/${m.file}`).then(r => r.text());
+                const players = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(p => p.name);
                 
-                [cite_start]// 按 MatchID 从新到旧排序 [cite: 12]
-                matchList.sort((a, b) => b.id - a.id);
+                players.forEach(p => p.calculatedRating = getRating(p));
+                players.sort((a, b) => b.calculatedRating - a.calculatedRating);
 
-                const container = document.getElementById('matches-list');
-                container.innerHTML = '';
+                let rows = '';
+                players.forEach((p, index) => {
+                    rows += `
+                        <tr>
+                            <td class="${index === 0 ? 'mvp' : ''}">${p.name} ${index === 0 ? '👑' : ''}</td>
+                            <td>${p.kills} / ${p.deaths}</td>
+                            <td>${(p.damage/24).toFixed(1)}</td>
+                            <td>${p.enemy3ks}/${p.enemy4ks}/${p.enemy5ks}</td>
+                            <td class="rating-val">${p.calculatedRating}</td>
+                        </tr>
+                    `;
+                });
 
-                for (const match of matchList) {
-                    const csvData = await fetch(`data/${match.file}`).then(r => r.text());
-                    const results = Papa.parse(csvData, { header: true, dynamicTyping: true });
-                    
-                    renderMatch(match, results.data);
-                }
-            } catch (e) {
-                document.getElementById('matches-list').innerHTML = "暂无历史战绩，请确保已运行本地脚本并上传 data/matches.json";
-            }
-        }
-
-        function renderMatch(match, players) {
-            // 过滤掉空行
-            players = players.filter(p => p.name);
-            // 按 Rating 排序
-            players.forEach(p => p.rating = calcRating(p));
-            players.sort((a, b) => b.rating - a.rating);
-
-            let html = `
-                <div class="match-card">
-                    <div class="match-header">
-                        <span>比赛 ID: #${match.id}</span>
-                        <span>地图: ${players[0].team.replace('team_', '')} vs ...</span>
+                area.innerHTML += `
+                    <div class="match-card">
+                        <div class="match-info">
+                            <span>场次 ID: #${m.id}</span>
+                            <span>模式: MatchZy 竞技</span>
+                        </div>
+                        <table>
+                            <tr><th>选手</th><th>K / D</th><th>ADR</th><th>3k/4k/5k</th><th>Rating</th></tr>
+                            ${rows}
+                        </table>
                     </div>
-                    <table>
-                        <tr><th>玩家</th><th>K/D/A</th><th>ADR</th><th>多杀(2/3/4/5)</th><th>Rating</th></tr>
-            `;
-
-            players.forEach(p => {
-                const ratingClass = p.rating >= 1.0 ? 'high' : 'low';
-                html += `
-                    <tr>
-                        <td>${p.name}</td>
-                        <td>${p.kills}/${p.deaths}/${p.assists}</td>
-                        <td>${(p.damage/24).toFixed(1)}</td>
-                        <td>${p.enemy2ks}/${p.enemy3ks}/${p.enemy4ks}/${p.enemy5ks}</td>
-                        <td><span class="rating-box ${ratingClass}">${p.rating}</span></td>
-                    </tr>
                 `;
-            });
-
-            html += `</table></div>`;
-            document.getElementById('matches-list').innerHTML += html;
+            }
+        } catch (err) {
+            area.innerHTML = "战绩同步中... 请确保已上传 matches.json 及 CSV 文件。";
         }
-
-        loadMatches();
-    </script>
+    }
+    init();
+</script>
 </body>
 </html>
