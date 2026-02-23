@@ -2,65 +2,80 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Teio Server - 战绩大厅</title>
+    <title>Teio Server - 战绩大厅 (Rating 2.1 & Impact)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; }
+        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; --hltv-blue: #4a90e2; --hltv-red: #ff5252; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--dark-bg); color: white; margin: 0; padding: 20px; line-height: 1.6; }
-        .container { max-width: 1100px; margin: auto; }
+        .container { max-width: 1200px; margin: auto; }
+        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         
-        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; position: relative; }
-        
-        /* 顶部元数据栏 */
+        /* 元数据 */
         .match-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: #888; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
-        
-        /* Demo 下载按钮 */
         .demo-btn { background: #333; color: #fff; text-decoration: none; padding: 3px 10px; border-radius: 4px; border: 1px solid #444; font-size: 0.9em; transition: 0.2s; margin-right: 15px; }
         .demo-btn:hover { background: var(--main-green); border-color: var(--main-green); }
 
-        /* 比分显示 */
+        /* 比分 */
         .score-display { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 2em; font-weight: 800; margin-bottom: 25px; }
         .team-score-name { font-size: 0.45em; width: 220px; text-align: center; word-break: break-all; }
         .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; min-width: 80px; text-align: center; }
 
-        /* Rating 配色逻辑 */
-        .rtg-high { color: var(--main-green); font-weight: bold; }
-        .rtg-low { color: var(--main-red); font-weight: bold; }
-        .rtg-mid { color: var(--main-white); }
-
+        /* 布局 */
         .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
+        @media (max-width: 1000px) { .teams-container { grid-template-columns: 1fr; } }
+
         .team-section { background: #252525; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
         .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; border-bottom: 2px solid #444; }
         
         table { width: 100%; border-collapse: collapse; }
-        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
-        td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
+        th { background: #2a2a2a; color: #666; font-size: 0.7em; padding: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #333; font-size: 0.9em; }
+        
+        .name-cell { text-align: left; padding-left: 15px; font-weight: bold; }
+        .multi-kill-cell { color: #aaa; font-size: 0.85em; }
 
-        /* Rating 配色：>1.05 绿, <0.95 红, 其余白 */
+        /* Rating & Impact 配色 */
         .rtg-high { color: var(--main-green); font-weight: bold; }
         .rtg-low { color: var(--main-red); font-weight: bold; }
         .rtg-mid { color: var(--main-white); }
-        
+        .impact-val { color: #ffa726; font-weight: bold; } /* Impact 使用橙色标注 */
+
         .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="btn-back">← 返回主页</a>
-        <h1 style="text-align: center;">🏆 比赛数据中心</h1>
-        <div id="display-area">正在读取战绩清单...</div>
+        <h1 style="text-align: center; margin-bottom: 30px;">🏆 Teio Server 战绩中心</h1>
+        <div id="display-area">同步战绩数据中...</div>
     </div>
 
 <script>
-    function getRating(p) {
+    // 综合 Rating 2.1 与 Impact 计算
+    function getPlayerStats(p) {
         const rounds = 24; 
-        const kpr = p.kills / rounds;
-        const dpr = p.deaths / rounds;
-        const adr = p.damage / rounds;
-        let score = ( (kpr/0.679) + ((1-dpr)/0.683) + (adr/90) ) / 3;
-        const bonus = (p.enemy2ks*0.02 + p.enemy3ks*0.06 + p.enemy4ks*0.12 + p.enemy5ks*0.25) / rounds;
-        return parseFloat((score + bonus).toFixed(2));
+        const KPR = p.kills / rounds;
+        const DPR = p.deaths / rounds;
+        const ADR = p.damage / rounds;
+        const APR = p.assists / rounds;
+
+        // 计算 Impact (影响力评分)
+        // 逻辑：多杀、首杀、残局
+        let impact = 2.13 * KPR + 0.42 * APR - 0.41;
+        impact += (p.entry_wins / rounds) * 0.8;
+        impact += (p.enemy3ks * 0.05 + p.enemy4ks * 0.12 + p.enemy5ks * 0.25) / rounds;
+
+        // 计算 Rating 2.1
+        const killRating = KPR / 0.679;
+        const survivalRating = (rounds - p.deaths) / rounds / 0.317;
+        const damageRating = ADR / 80;
+        let rating21 = 0.175 * killRating + 0.175 * survivalRating + 0.25 * damageRating + 0.40 * (impact / 1.1);
+
+        return {
+            rating: parseFloat((rating21 * 1.05).toFixed(2)),
+            impact: parseFloat(impact.toFixed(2)),
+            multis: `${p.enemy3ks}/${p.enemy4ks}/${p.enemy5ks}` // 3k/4k/5k 字符串
+        };
     }
 
     async function init() {
@@ -81,7 +96,10 @@
                 players.forEach(p => {
                     const t = p.team || "未知";
                     if (!teams[t]) teams[t] = [];
-                    p.rtg = getRating(p);
+                    const stats = getPlayerStats(p);
+                    p.rtg = stats.rating;
+                    p.impact = stats.impact;
+                    p.multis = stats.multis;
                     teams[t].push(p);
                 });
 
@@ -96,16 +114,28 @@
                         else if (p.rtg < 0.95) rtgClass = "rtg-low";
 
                         rows += `<tr>
-                            <td style="text-align:left; padding-left:15px; font-weight:bold;">${p.name}</td>
+                            <td class="name-cell">${p.name}</td>
                             <td style="color:#888;">${p.kills}-${p.deaths}</td>
                             <td>${(p.damage/24).toFixed(1)}</td>
+                            <td class="impact-val">${p.impact}</td>
+                            <td class="multi-kill-cell">${p.multis}</td>
                             <td class="${rtgClass}">${p.rtg}</td>
                         </tr>`;
                     });
                     teamsHtml += `
                         <div class="team-section">
                             <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">${tn}</div>
-                            <table><tr><th>选手</th><th>K-D</th><th>ADR</th><th>Rating</th></tr>${rows}</table>
+                            <table>
+                                <tr>
+                                    <th style="text-align:left; padding-left:15px;">选手</th>
+                                    <th>K-D</th>
+                                    <th>ADR</th>
+                                    <th>Impact</th>
+                                    <th>3k/4k/5k</th>
+                                    <th>Rating</th>
+                                </tr>
+                                ${rows}
+                            </table>
                         </div>`;
                 });
 
@@ -126,7 +156,7 @@
                         <div class="teams-container">${teamsHtml}</div>
                     </div>`;
             }
-        } catch (e) { area.innerHTML = "战绩加载失败。"; }
+        } catch (e) { area.innerHTML = "加载失败，请检查数据。"; }
     }
     init();
 </script>
