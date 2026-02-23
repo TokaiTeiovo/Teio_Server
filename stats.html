@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Teio 服务器 - 战绩中心</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        h1 { text-align: center; color: var(--main-green); }
+        .match-card { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 30px; border-top: 4px solid var(--main-green); }
+        .match-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #333; }
+        th { color: var(--main-green); }
+        .rating-box { font-weight: bold; padding: 4px 8px; border-radius: 4px; }
+        .high { background: #2e7d32; }
+        .low { background: #c62828; }
+        .btn-back { display: inline-block; margin-bottom: 20px; color: var(--main-green); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="btn-back">← 返回主页</a>
+        <h1>📊 历史战绩排行 (Rating 1.0)</h1>
+        <div id="matches-list">正在加载战绩历史...</div>
+    </div>
+
+    <script>
+        // Rating 计算公式 (接近 HLTV 1.0)
+        // 假设 MR12 (24回合)，如果CSV里没给回合数，默认取24
+        function calcRating(p) {
+            const rounds = 24; 
+            const adr = p.damage / rounds;
+            const kpr = p.kills / rounds;
+            const dpr = p.deaths / rounds;
+            
+            // 基础 Rating 公式
+            let rating = ( (kpr / 0.679) + ( (1 - dpr) / 0.683 ) + (adr / 90) ) / 3;
+            
+            // 多杀加成
+            const multiKillBonus = (p.enemy2ks * 0.05 + p.enemy3ks * 0.15 + p.enemy4ks * 0.3 + p.enemy5ks * 0.5) / rounds;
+            return (rating + multiKillBonus).toFixed(2);
+        }
+
+        async function loadMatches() {
+            try {
+                // 读取 matches.json (由本地脚本生成)
+                const response = await fetch('data/matches.json');
+                const matchList = await response.json();
+                
+                [cite_start]// 按 MatchID 从新到旧排序 [cite: 12]
+                matchList.sort((a, b) => b.id - a.id);
+
+                const container = document.getElementById('matches-list');
+                container.innerHTML = '';
+
+                for (const match of matchList) {
+                    const csvData = await fetch(`data/${match.file}`).then(r => r.text());
+                    const results = Papa.parse(csvData, { header: true, dynamicTyping: true });
+                    
+                    renderMatch(match, results.data);
+                }
+            } catch (e) {
+                document.getElementById('matches-list').innerHTML = "暂无历史战绩，请确保已运行本地脚本并上传 data/matches.json";
+            }
+        }
+
+        function renderMatch(match, players) {
+            // 过滤掉空行
+            players = players.filter(p => p.name);
+            // 按 Rating 排序
+            players.forEach(p => p.rating = calcRating(p));
+            players.sort((a, b) => b.rating - a.rating);
+
+            let html = `
+                <div class="match-card">
+                    <div class="match-header">
+                        <span>比赛 ID: #${match.id}</span>
+                        <span>地图: ${players[0].team.replace('team_', '')} vs ...</span>
+                    </div>
+                    <table>
+                        <tr><th>玩家</th><th>K/D/A</th><th>ADR</th><th>多杀(2/3/4/5)</th><th>Rating</th></tr>
+            `;
+
+            players.forEach(p => {
+                const ratingClass = p.rating >= 1.0 ? 'high' : 'low';
+                html += `
+                    <tr>
+                        <td>${p.name}</td>
+                        <td>${p.kills}/${p.deaths}/${p.assists}</td>
+                        <td>${(p.damage/24).toFixed(1)}</td>
+                        <td>${p.enemy2ks}/${p.enemy3ks}/${p.enemy4ks}/${p.enemy5ks}</td>
+                        <td><span class="rating-box ${ratingClass}">${p.rating}</span></td>
+                    </tr>
+                `;
+            });
+
+            html += `</table></div>`;
+            document.getElementById('matches-list').innerHTML += html;
+        }
+
+        loadMatches();
+    </script>
+</body>
+</html>
