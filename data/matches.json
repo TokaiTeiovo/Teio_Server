@@ -2,31 +2,36 @@
     {
         "id": 12,
         "file": "match_12.csv",
-        "start_time": "2026-02-23 23:59",
-        "score": "VS"
+        "end_time": "2026-02-23 23:59",
+        "score": "VS",
+        "demo_file": null
     },
     {
         "id": 11,
         "file": "match_11.csv",
-        "start_time": "2026-02-23 23:06",
-        "score": "VS"
+        "end_time": "2026-02-23 23:06",
+        "score": "VS",
+        "demo_file": null
     },
     {
         "id": 10,
         "file": "match_10.csv",
-        "start_time": "2026-02-23 20:40",
-        "score": "VS"
+        "end_time": "2026-02-23 20:40",
+        "score": "VS",
+        "demo_file": null
     },
     {
         "id": 9,
         "file": "match_9.csv",
-        "start_time": "2026-02-23 15:41",
-        "score": "VS"
+        "end_time": "2026-02-23 15:41",
+        "score": "VS",
+        "demo_file": null
     },
     {
         "id": 8,
         "file": "match_8.csv",
-        "start_time": "2026-02-23 14:27",
-        "score": "VS"
+        "end_time": "2026-02-23 14:27",
+        "score": "VS",
+        "demo_file": null
     }
 ]

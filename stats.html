@@ -5,46 +5,54 @@
     <title>Teio Server - 战绩大厅</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; --hltv-blue: #4a90e2; --hltv-red: #ff5252; }
+        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--dark-bg); color: white; margin: 0; padding: 20px; line-height: 1.6; }
         .container { max-width: 1100px; margin: auto; }
         
-        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; position: relative; }
         
-        /* 元数据栏：仅保留结束时间 */
-        .match-meta { display: flex; justify-content: space-between; font-size: 0.85em; color: #888; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        /* 顶部元数据栏 */
+        .match-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: #888; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        
+        /* Demo 下载按钮 */
+        .demo-btn { background: #333; color: #fff; text-decoration: none; padding: 3px 10px; border-radius: 4px; border: 1px solid #444; font-size: 0.9em; transition: 0.2s; margin-right: 15px; }
+        .demo-btn:hover { background: var(--main-green); border-color: var(--main-green); }
 
+        /* 比分显示 */
         .score-display { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 2em; font-weight: 800; margin-bottom: 25px; }
         .team-score-name { font-size: 0.45em; width: 220px; text-align: center; word-break: break-all; }
         .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; min-width: 80px; text-align: center; }
 
-        .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
-
-        .team-section { background: #252525; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
-        .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; border-bottom: 2px solid #444; }
-        
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; }
-        td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
-        
-        /* Rating 配色：>1.05 绿, <0.95 红, 其余白 */
+        /* Rating 配色逻辑 */
         .rtg-high { color: var(--main-green); font-weight: bold; }
         .rtg-low { color: var(--main-red); font-weight: bold; }
         .rtg-mid { color: var(--main-white); }
 
+        .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
+        .team-section { background: #252525; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; border-bottom: 2px solid #444; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
+        td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
+
+        /* Rating 配色：>1.05 绿, <0.95 红, 其余白 */
+        .rtg-high { color: var(--main-green); font-weight: bold; }
+        .rtg-low { color: var(--main-red); font-weight: bold; }
+        .rtg-mid { color: var(--main-white); }
+        
         .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="btn-back">← 返回主页</a>
-        <h1 style="text-align: center; margin-bottom: 30px;">🏆 比赛数据中心</h1>
-        <div id="display-area">正在同步战绩...</div>
+        <h1 style="text-align: center;">🏆 比赛数据中心</h1>
+        <div id="display-area">正在读取战绩清单...</div>
     </div>
 
 <script>
-    // Rating 1.0 计算 (基于 kills, deaths, damage 及多杀数据)
     function getRating(p) {
         const rounds = 24; 
         const kpr = p.kills / rounds;
@@ -104,8 +112,11 @@
                 area.innerHTML += `
                     <div class="match-card">
                         <div class="match-meta">
-                            <div>🏁 结束时间: ${m.end_time || m.start_time || "未记录"}</div>
-                            <div>ID: #${m.id}</div>
+                            <div>🏁 结束时间: ${m.end_time || "未记录"}</div>
+                            <div>
+                                ${m.demo_file ? `<a href="data/${m.demo_file}" class="demo-btn" download>⏬ 下载 Demo</a>` : ''}
+                                <span>ID: #${m.id}</span>
+                            </div>
                         </div>
                         <div class="score-display">
                             <div class="team-score-name">${tNames[0] || ""}</div>
