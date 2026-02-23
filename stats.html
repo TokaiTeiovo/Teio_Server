@@ -9,22 +9,22 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
         .container { max-width: 1100px; margin: auto; }
         
-        /* 比赛头部信息 */
+        /* 比赛卡片头部 */
         .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; }
         .match-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; gap: 10px; }
         .match-id { color: #888; font-size: 0.9em; font-weight: bold; }
         
-        /* 核心比分显示 */
-        .score-display { display: flex; align-items: center; gap: 30px; font-size: 2.2em; font-weight: 800; font-family: 'Arial Black', sans-serif; }
-        .team-score-name { font-size: 0.5em; color: #fff; text-transform: uppercase; width: 150px; text-align: center; }
-        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; }
+        /* 比分显示区 */
+        .score-display { display: flex; align-items: center; gap: 20px; font-size: 2em; font-weight: 800; font-family: 'Arial Black', sans-serif; }
+        .team-score-name { font-size: 0.45em; color: #fff; width: 200px; text-align: center; word-break: break-all; line-height: 1.2; }
+        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; min-width: 80px; text-align: center; }
 
-        /* 分栏布局 */
+        /* HLTV 分栏布局 */
         .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 900px) { .teams-container { grid-template-columns: 1fr; } }
+        @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
 
         .team-section { background: #252525; border-radius: 4px; overflow: hidden; }
-        .team-title { padding: 12px; font-weight: bold; background: #333; display: flex; justify-content: space-between; }
+        .team-title { padding: 12px; font-weight: bold; background: #333; display: flex; justify-content: space-between; align-items: center; }
         
         table { width: 100%; border-collapse: collapse; }
         th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
@@ -32,7 +32,8 @@
         .name-cell { text-align: left; font-weight: bold; padding-left: 15px; }
         .rating-cell { font-weight: bold; color: var(--main-green); }
         
-        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
+        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; transition: 0.2s; }
+        .btn-back:hover { color: var(--main-green); }
     </style>
 </head>
 <body>
@@ -42,13 +43,14 @@
     </div>
 
 <script>
-    // Rating 1.0 计算 (基于你提供的 CSV 字段)
+    // Rating 1.0 计算公式
     function getRating(p) {
         const rounds = 24; 
         const kpr = p.kills / rounds;
         const dpr = p.deaths / rounds;
         const adr = p.damage / rounds;
         let score = ( (kpr/0.679) + ((1-dpr)/0.683) + (adr/90) ) / 3;
+        // 加上多杀权重
         const bonus = (p.enemy2ks*0.02 + p.enemy3ks*0.06 + p.enemy4ks*0.12 + p.enemy5ks*0.25) / rounds;
         return (score + bonus).toFixed(2);
     }
@@ -57,9 +59,11 @@
         const area = document.getElementById('display-area');
         try {
             const res = await fetch('data/matches.json');
+            if (!res.ok) throw new Error("无法读取 matches.json");
             const matches = await res.json();
             area.innerHTML = '';
 
+            // 循环处理每一场比赛
             for (const m of matches) {
                 const csvRes = await fetch(`data/${m.file}`);
                 if (!csvRes.ok) continue;
@@ -67,34 +71,43 @@
                 const csvText = await csvRes.text();
                 const players = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(p => p.name);
                 
-                // 数据分组
+                // 按 CSV 里的原始 team 字段分组
                 const teams = {};
                 players.forEach(p => {
-                    const t = p.team || "未知";
+                    const t = p.team || "未知队伍";
                     if (!teams[t]) teams[t] = [];
                     p.rtg = getRating(p);
                     teams[t].push(p);
                 });
 
                 const tNames = Object.keys(teams);
-                const teamA = tNames[0];
-                const teamB = tNames[1] || "Waiting...";
+                const teamA = tNames[0] || "Team A";
+                const teamB = tNames[1] || "Team B";
                 
-                // 渲染比赛卡片
                 let teamsHtml = '';
                 tNames.forEach((tn, idx) => {
+                    // 队伍内按 Rating 排序
                     teams[tn].sort((a,b) => b.rtg - a.rtg);
                     let rows = '';
                     teams[tn].forEach(p => {
-                        rows += `<tr><td class="name-cell">${p.name}</td><td>${p.kills}-${p.deaths}</td><td>${(p.damage/24).toFixed(1)}</td><td class="rating-cell">${p.rtg}</td></tr>`;
+                        rows += `<tr>
+                            <td class="name-cell">${p.name}</td>
+                            <td>${p.kills}-${p.deaths}</td>
+                            <td>${(p.damage/24).toFixed(1)}</td>
+                            <td class="rating-cell">${p.rtg}</td>
+                        </tr>`;
                     });
+
                     teamsHtml += `
                         <div class="team-section">
                             <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">
-                                <span>${tn.replace('team_', '')}</span>
-                                <span style="font-size:0.8em; color:#888;">Avg Rating: ${(teams[tn].reduce((a,b)=>a+parseFloat(b.rtg),0)/teams[tn].length).toFixed(2)}</span>
+                                <span>${tn}</span>
+                                <span style="font-size:0.75em; color:#888;">平均 Rating: ${(teams[tn].reduce((a,b)=>a+parseFloat(b.rtg),0)/teams[tn].length).toFixed(2)}</span>
                             </div>
-                            <table><tr><th>PLAYER</th><th>K-D</th><th>ADR</th><th>RTG</th></tr>${rows}</table>
+                            <table>
+                                <tr><th>选手</th><th>K-D</th><th>ADR</th><th>Rating</th></tr>
+                                ${rows}
+                            </table>
                         </div>`;
                 });
 
@@ -103,15 +116,17 @@
                         <div class="match-header">
                             <div class="match-id">MATCH ID #${m.id}</div>
                             <div class="score-display">
-                                <div class="team-score-name">${teamA.replace('team_', '')}</div>
+                                <div class="team-score-name">${teamA}</div>
                                 <div class="score-val">${m.score || "VS"}</div>
-                                <div class="team-score-name">${teamB.replace('team_', '')}</div>
+                                <div class="team-score-name">${teamB}</div>
                             </div>
                         </div>
                         <div class="teams-container">${teamsHtml}</div>
                     </div>`;
             }
-        } catch (e) { area.innerHTML = "战绩加载失败，请检查文件路径。"; }
+        } catch (e) { 
+            area.innerHTML = `<p style="color:red; text-align:center;">战绩加载失败: ${e.message}</p>`; 
+        }
     }
     init();
 </script>
