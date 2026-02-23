@@ -5,45 +5,51 @@
     <title>Teio Server - 战绩大厅</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
+        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; --hltv-blue: #4a90e2; --hltv-red: #ff5252; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--dark-bg); color: white; margin: 0; padding: 20px; line-height: 1.6; }
         .container { max-width: 1100px; margin: auto; }
         
-        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; }
+        /* 比赛卡片 */
+        .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         
-        /* 时间信息栏 */
-        .match-meta { display: flex; justify-content: space-between; font-size: 0.85em; color: #888; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        /* 时间与元数据 */
+        .match-meta { display: flex; justify-content: space-between; font-size: 0.85em; color: #888; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
         .match-time-group span { margin-right: 15px; }
 
+        /* 比分区域 */
         .score-display { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 2em; font-weight: 800; margin-bottom: 25px; }
-        .team-score-name { font-size: 0.45em; width: 200px; text-align: center; }
-        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; }
+        .team-score-name { font-size: 0.45em; width: 220px; text-align: center; word-break: break-all; }
+        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; min-width: 80px; text-align: center; }
 
+        /* 队伍布局 */
         .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
 
-        .team-section { background: #252525; border-radius: 4px; overflow: hidden; }
-        .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; }
+        .team-section { background: #252525; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; display: flex; justify-content: space-between; }
         
         table { width: 100%; border-collapse: collapse; }
-        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; }
+        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
         td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
         
-        /* Rating 配色逻辑 */
+        /* Rating 配色 */
         .rtg-high { color: var(--main-green); font-weight: bold; }
         .rtg-low { color: var(--main-red); font-weight: bold; }
         .rtg-mid { color: var(--main-white); }
 
-        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
+        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; transition: 0.2s; }
+        .btn-back:hover { color: var(--main-green); }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="btn-back">← 返回主页</a>
-        <div id="display-area">正在解析战绩...</div>
+        <h1 style="text-align: center; margin-bottom: 30px;">🏆 比赛数据中心</h1>
+        <div id="display-area">正在读取战绩清单...</div>
     </div>
 
 <script>
+    // 基于 CSV 字段计算 Rating 1.0
     function getRating(p) {
         const rounds = 24; 
         const kpr = p.kills / rounds;
@@ -54,12 +60,20 @@
         return parseFloat((score + bonus).toFixed(2));
     }
 
-    // 秒转时分秒
     function formatDuration(seconds) {
         if (!seconds) return "未知";
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m}分${s}秒`;
+    }
+
+    function formatDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${d} ${hh}:${mm}`;
     }
 
     async function init() {
@@ -76,9 +90,17 @@
                 const csvText = await csvRes.text();
                 const players = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(p => p.name);
                 
-                // 从 CSV 的第一个玩家数据中提取总时长
-                const durationRaw = players[0]?.live_time; 
-                const durationText = formatDuration(durationRaw);
+                // 时间推算逻辑：结束时间 - 持续时长 = 开始时间
+                const durationRaw = players[0]?.live_time || 0; 
+                const endTimeSource = m.start_time || m.end_time;
+                let displayStart = "未记录", displayEnd = "未记录";
+
+                if (endTimeSource && endTimeSource !== "未记录") {
+                    const endDate = new Date(endTimeSource.replace(/-/g, '/'));
+                    const startDate = new Date(endDate.getTime() - durationRaw * 1000);
+                    displayStart = formatDate(startDate);
+                    displayEnd = formatDate(endDate);
+                }
 
                 const teams = {};
                 players.forEach(p => {
@@ -89,15 +111,11 @@
                 });
 
                 const tNames = Object.keys(teams);
-                const teamA = tNames[0] || "Team A";
-                const teamB = tNames[1] || "Team B";
-                
                 let teamsHtml = '';
                 tNames.forEach((tn, idx) => {
                     teams[tn].sort((a,b) => b.rtg - a.rtg);
                     let rows = '';
                     teams[tn].forEach(p => {
-                        // Rating 配色逻辑
                         let rtgClass = "rtg-mid";
                         if (p.rtg > 1.05) rtgClass = "rtg-high";
                         else if (p.rtg < 0.95) rtgClass = "rtg-low";
@@ -109,10 +127,12 @@
                             <td class="${rtgClass}">${p.rtg}</td>
                         </tr>`;
                     });
-
                     teamsHtml += `
                         <div class="team-section">
-                            <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">${tn}</div>
+                            <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">
+                                <span>${tn}</span>
+                                <span style="font-size:0.8em; color:#888;">Avg: ${(teams[tn].reduce((a,b)=>a+parseFloat(b.rtg),0)/teams[tn].length).toFixed(2)}</span>
+                            </div>
                             <table><tr><th>选手</th><th>K-D</th><th>ADR</th><th>Rating</th></tr>${rows}</table>
                         </div>`;
                 });
@@ -121,15 +141,15 @@
                     <div class="match-card">
                         <div class="match-meta">
                             <div class="match-time-group">
-                                <span>📅 开始: ${m.start_time || "未记录"}</span>
-                                <span>🏁 结束: ${m.end_time || "未记录"}</span>
+                                <span>📅 开始: ${displayStart}</span>
+                                <span>🏁 结束: ${displayEnd}</span>
                             </div>
-                            <div>⏳ 持续: ${durationText} | ID: #${m.id}</div>
+                            <div>⏳ 持续: ${formatDuration(durationRaw)} | ID: #${m.id}</div>
                         </div>
                         <div class="score-display">
-                            <div class="team-score-name">${teamA}</div>
+                            <div class="team-score-name">${tNames[0] || ""}</div>
                             <div class="score-val">${m.score || "VS"}</div>
-                            <div class="team-score-name">${teamB}</div>
+                            <div class="team-score-name">${tNames[1] || ""}</div>
                         </div>
                         <div class="teams-container">${teamsHtml}</div>
                     </div>`;
