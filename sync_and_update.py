@@ -2,6 +2,7 @@ import os
 import shutil
 import json
 import re
+import time
 
 # ================= 配置区域 =================
 # 你服务器存放战绩的绝对路径
@@ -29,13 +30,16 @@ def sync_stats():
                 source_path = os.path.join(root, filename)
                 target_filename = f"match_{match_id}.csv"
                 target_path = os.path.join(GITHUB_DATA_DIR, target_filename)
-
+                ctime = os.path.getctime(source_path)
+                start_time_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(ctime))
                 # 复制文件到 GitHub 目录
                 shutil.copy2(source_path, target_path)
                 
                 match_list.append({
                     "id": match_id,
-                    "file": target_filename
+                    "file": target_filename,
+                    "start_time": start_time_str, # 自动获取本地文件创建时间
+                    "score": "VS"
                 })
 
     # 按 ID 从新到旧排序

@@ -5,35 +5,36 @@
     <title>Teio Server - 战绩大厅</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; --hltv-blue: #4a90e2; --hltv-red: #ff5252; }
+        :root { --main-green: #4CAF50; --main-red: #ff5252; --main-white: #ffffff; --dark-bg: #121212; --card-bg: #1e1e1e; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; padding: 20px; }
         .container { max-width: 1100px; margin: auto; }
         
-        /* 比赛卡片头部 */
         .match-card { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 40px; border: 1px solid #333; }
-        .match-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 25px; gap: 10px; }
-        .match-id { color: #888; font-size: 0.9em; font-weight: bold; }
         
-        /* 比分显示区 */
-        .score-display { display: flex; align-items: center; gap: 20px; font-size: 2em; font-weight: 800; font-family: 'Arial Black', sans-serif; }
-        .team-score-name { font-size: 0.45em; color: #fff; width: 200px; text-align: center; word-break: break-all; line-height: 1.2; }
-        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; min-width: 80px; text-align: center; }
+        /* 时间信息栏 */
+        .match-meta { display: flex; justify-content: space-between; font-size: 0.85em; color: #888; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        .match-time-group span { margin-right: 15px; }
 
-        /* HLTV 分栏布局 */
+        .score-display { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 2em; font-weight: 800; margin-bottom: 25px; }
+        .team-score-name { font-size: 0.45em; width: 200px; text-align: center; }
+        .score-val { color: var(--main-green); background: #000; padding: 5px 20px; border-radius: 5px; }
+
         .teams-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 950px) { .teams-container { grid-template-columns: 1fr; } }
 
         .team-section { background: #252525; border-radius: 4px; overflow: hidden; }
-        .team-title { padding: 12px; font-weight: bold; background: #333; display: flex; justify-content: space-between; align-items: center; }
+        .team-title { padding: 12px; font-weight: bold; background: #333; font-size: 0.9em; }
         
         table { width: 100%; border-collapse: collapse; }
-        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; text-transform: uppercase; }
+        th { background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; }
         td { padding: 12px 10px; text-align: center; border-bottom: 1px solid #333; }
-        .name-cell { text-align: left; font-weight: bold; padding-left: 15px; }
-        .rating-cell { font-weight: bold; color: var(--main-green); }
         
-        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; transition: 0.2s; }
-        .btn-back:hover { color: var(--main-green); }
+        /* Rating 配色逻辑 */
+        .rtg-high { color: var(--main-green); font-weight: bold; }
+        .rtg-low { color: var(--main-red); font-weight: bold; }
+        .rtg-mid { color: var(--main-white); }
+
+        .btn-back { display: inline-block; margin-bottom: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -43,27 +44,31 @@
     </div>
 
 <script>
-    // Rating 1.0 计算公式
     function getRating(p) {
         const rounds = 24; 
         const kpr = p.kills / rounds;
         const dpr = p.deaths / rounds;
         const adr = p.damage / rounds;
         let score = ( (kpr/0.679) + ((1-dpr)/0.683) + (adr/90) ) / 3;
-        // 加上多杀权重
         const bonus = (p.enemy2ks*0.02 + p.enemy3ks*0.06 + p.enemy4ks*0.12 + p.enemy5ks*0.25) / rounds;
-        return (score + bonus).toFixed(2);
+        return parseFloat((score + bonus).toFixed(2));
+    }
+
+    // 秒转时分秒
+    function formatDuration(seconds) {
+        if (!seconds) return "未知";
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}分${s}秒`;
     }
 
     async function init() {
         const area = document.getElementById('display-area');
         try {
             const res = await fetch('data/matches.json');
-            if (!res.ok) throw new Error("无法读取 matches.json");
             const matches = await res.json();
             area.innerHTML = '';
 
-            // 循环处理每一场比赛
             for (const m of matches) {
                 const csvRes = await fetch(`data/${m.file}`);
                 if (!csvRes.ok) continue;
@@ -71,10 +76,13 @@
                 const csvText = await csvRes.text();
                 const players = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(p => p.name);
                 
-                // 按 CSV 里的原始 team 字段分组
+                // 从 CSV 的第一个玩家数据中提取总时长
+                const durationRaw = players[0]?.live_time; 
+                const durationText = formatDuration(durationRaw);
+
                 const teams = {};
                 players.forEach(p => {
-                    const t = p.team || "未知队伍";
+                    const t = p.team || "未知";
                     if (!teams[t]) teams[t] = [];
                     p.rtg = getRating(p);
                     teams[t].push(p);
@@ -86,47 +94,47 @@
                 
                 let teamsHtml = '';
                 tNames.forEach((tn, idx) => {
-                    // 队伍内按 Rating 排序
                     teams[tn].sort((a,b) => b.rtg - a.rtg);
                     let rows = '';
                     teams[tn].forEach(p => {
+                        // Rating 配色逻辑
+                        let rtgClass = "rtg-mid";
+                        if (p.rtg > 1.05) rtgClass = "rtg-high";
+                        else if (p.rtg < 0.95) rtgClass = "rtg-low";
+
                         rows += `<tr>
-                            <td class="name-cell">${p.name}</td>
-                            <td>${p.kills}-${p.deaths}</td>
+                            <td style="text-align:left; padding-left:15px; font-weight:bold;">${p.name}</td>
+                            <td style="color:#888;">${p.kills}-${p.deaths}</td>
                             <td>${(p.damage/24).toFixed(1)}</td>
-                            <td class="rating-cell">${p.rtg}</td>
+                            <td class="${rtgClass}">${p.rtg}</td>
                         </tr>`;
                     });
 
                     teamsHtml += `
                         <div class="team-section">
-                            <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">
-                                <span>${tn}</span>
-                                <span style="font-size:0.75em; color:#888;">平均 Rating: ${(teams[tn].reduce((a,b)=>a+parseFloat(b.rtg),0)/teams[tn].length).toFixed(2)}</span>
-                            </div>
-                            <table>
-                                <tr><th>选手</th><th>K-D</th><th>ADR</th><th>Rating</th></tr>
-                                ${rows}
-                            </table>
+                            <div class="team-title" style="border-bottom: 2px solid ${idx==0 ? 'var(--hltv-blue)' : 'var(--hltv-red)'}">${tn}</div>
+                            <table><tr><th>选手</th><th>K-D</th><th>ADR</th><th>Rating</th></tr>${rows}</table>
                         </div>`;
                 });
 
                 area.innerHTML += `
                     <div class="match-card">
-                        <div class="match-header">
-                            <div class="match-id">MATCH ID #${m.id}</div>
-                            <div class="score-display">
-                                <div class="team-score-name">${teamA}</div>
-                                <div class="score-val">${m.score || "VS"}</div>
-                                <div class="team-score-name">${teamB}</div>
+                        <div class="match-meta">
+                            <div class="match-time-group">
+                                <span>📅 开始: ${m.start_time || "未记录"}</span>
+                                <span>🏁 结束: ${m.end_time || "未记录"}</span>
                             </div>
+                            <div>⏳ 持续: ${durationText} | ID: #${m.id}</div>
+                        </div>
+                        <div class="score-display">
+                            <div class="team-score-name">${teamA}</div>
+                            <div class="score-val">${m.score || "VS"}</div>
+                            <div class="team-score-name">${teamB}</div>
                         </div>
                         <div class="teams-container">${teamsHtml}</div>
                     </div>`;
             }
-        } catch (e) { 
-            area.innerHTML = `<p style="color:red; text-align:center;">战绩加载失败: ${e.message}</p>`; 
-        }
+        } catch (e) { area.innerHTML = "战绩加载失败。"; }
     }
     init();
 </script>
