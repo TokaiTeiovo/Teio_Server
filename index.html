@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teio CS2 练习服务器</title>
     <style>
@@ -40,60 +39,57 @@
 <div class="container">
     <header>
         <h1>Teio CS2 练习服</h1>
-        <p>多线接入 · 丝滑练习体验</p>
     </header>
 
     <div class="action-box">
         <a href="steam://run/730//+connect%20103.91.208.41:62917/" class="btn btn-multi">
-            🌐 全网线路直连 (推荐)<br><small>电信 / 移动 / 联通用户</small>
+            🌐 全网线路直连<br><small>电信 / 移动 / 联通用户</small>
         </a>
-
         <a href="steam://run/730//+connect%2060.26.220.79:27020/" class="btn btn-unicom">
             🚀 联通专属线路<br><small>仅限联通用户使用</small>
         </a>
-
-        <a href="https://inventory.cstrike.app" target="_blank" class="btn btn-skin">
-            🎨 皮肤修改仓库<br><small>inventory.cstrike.app</small>
+        <a href="https://inventory.cstrike.app/" target="_blank" class="btn btn-skin">
+            🎨 打开皮肤修改仓库<br>
         </a>
-    </div>
-
-    <div class="copy-section">
-        <p style="margin-top:0; font-size:0.9em; color:#888;">如果上方按钮点击没反应，请点击下方指令复制并进游戏粘贴：</p>
-        <div class="copy-box" onclick="copyText('connect 103.91.208.41:62917')">
-            点击复制：connect 103.91.208.41:62917
-        </div>
     </div>
 
     <div class="section">
         <h2>📌 常用比赛指令</h2>
-        [cite_start]<p style="font-size: 0.9em; color: var(--text-gray);">支持前缀 . 或 ! [cite: 1, 2]</p>
+        <p style="font-size: 0.9em; color: var(--text-gray);">前缀支持使用 . 或 ! [cite: 1, 2]</p>
         <div class="cmd-grid">
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">标记准备就绪 [cite: 2]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.unready</span><span class="cmd-desc">取消准备状态 [cite: 2]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停 [cite: 2]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">恢复当前回合备份 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">将玩家标记为准备就绪 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.unready / .ur</span><span class="cmd-desc">取消准备状态 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">双方输入可恢复当前回合备份 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.stay / .switch</span><span class="cmd-desc">刀人局获胜后选择阵营 [cite: 2]</span></div>
         </div>
     </div>
 
     <div class="section">
         <h2>🛠️ 练习模式专用 (.prac)</h2>
-        [cite_start]<p style="font-size: 0.9em; color: var(--text-gray);">需先输入 .prac 开启模式 [cite: 6]</p>
+        <p style="font-size: 0.9em; color: var(--text-gray);">输入 .prac 开启练习模式后方可使用 [cite: 6]</p>
         <div class="cmd-grid">
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上个投掷物 [cite: 5]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除 Bot [cite: 3, 4]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">无敌或防闪光干扰 [cite: 4]</span></div>
-            [cite_start]<div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">投掷物轨迹预览 [cite: 4]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上一个投掷物 [cite: 5]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除机器人 [cite: 3, 4]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">开启无敌或防闪光干扰 [cite: 4]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">开启/关闭投掷物轨迹预览 [cite: 4]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.clear</span><span class="cmd-desc">清除场上所有的烟雾和火焰 [cite: 5]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.last</span><span class="cmd-desc">传送到上一次投掷的位置 [cite: 5]</span></div>
         </div>
     </div>
+
+    <div class="section">
+        <h2>🛡️ 管理员维护指令</h2>
+        <div class="cmd-grid">
+            <div class="cmd-item"><span class="cmd-name">.start / .restart</span><span class="cmd-desc">强制开始或重置比赛 [cite: 6]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.map &lt;地图名&gt;</span><span class="cmd-desc">更换服务器当前地图 [cite: 6]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.roundknife</span><span class="cmd-desc">开启/关闭刀人局模式 [cite: 6]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.rcon &lt;命令&gt;</span><span class="cmd-desc">向服务器发送控制台指令 [cite: 7]</span></div>
+        </div>
+    </div>
+
 </div>
 
-<script>
-function copyText(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        alert("指令已复制！进入游戏按 ~ 键粘贴即可连接。");
-    });
-}
-</script>
 
-</body>
-</html>
+
+</body></html>
