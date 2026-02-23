@@ -1,30 +1,29 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teio CS2 练习服务器</title>
     <style>
         :root { --main-green: #4CAF50; --dark-bg: #121212; --card-bg: #1e1e1e; --text-gray: #b0b0b0; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--dark-bg); color: white; margin: 0; padding: 20px; line-height: 1.6; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         header { text-align: center; padding: 40px 0; }
         h1 { color: var(--main-green); font-size: 2.5em; margin-bottom: 10px; }
         
-        /* 调整操作区布局以容纳3个按钮 */
-        .action-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        /* 动态网格布局：自动适配 5 个按钮 */
+        .action-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }
         
-        .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; text-align: center; }
+        .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; text-align: center; min-height: 80px; }
         .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
-        .btn small { font-weight: normal; font-size: 0.8em; margin-top: 5px; opacity: 0.9; }
+        .btn small { font-weight: normal; font-size: 0.75em; margin-top: 5px; opacity: 0.8; }
 
-        .btn-multi { background: linear-gradient(135deg, #2e7d32, #43a047); } /* 全网线路：深绿 */
-        .btn-unicom { background: linear-gradient(135deg, #558b2f, #689f38); } /* 联通线路：浅绿 */
-        .btn-skin { background: linear-gradient(135deg, #1565c0, #1e88e5); } /* 皮肤仓库：蓝色 */
-
-        /* 复制指令区 */
-        .copy-section { background: #000; border: 1px dashed var(--main-green); border-radius: 10px; padding: 15px; margin-bottom: 30px; text-align: center; }
-        .copy-box { cursor: pointer; color: var(--main-green); font-family: monospace; font-size: 1.1em; padding: 8px; display: inline-block; transition: background 0.2s; }
-        .copy-box:hover { background: #1a1a1a; }
+        /* 颜色方案 */
+        .btn-multi { background: linear-gradient(135deg, #2e7d32, #43a047); }    /* 全网：深绿 */
+        .btn-unicom { background: linear-gradient(135deg, #558b2f, #689f38); }   /* 联通：浅绿 */
+        .btn-gotv { background: linear-gradient(135deg, #f57c00, #ff9800); }     /* GOTV：橙色 */
+        .btn-stats { background: linear-gradient(135deg, #7b1fa2, #9c27b0); }    /* 战绩：紫色 */
+        .btn-skin { background: linear-gradient(135deg, #1565c0, #1e88e5); }     /* 皮肤：蓝色 */
 
         .section { background: var(--card-bg); border-radius: 15px; padding: 25px; margin-bottom: 30px; border-left: 5px solid var(--main-green); }
         h2 { border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; font-size: 1.4em; }
@@ -42,54 +41,60 @@
     </header>
 
     <div class="action-box">
-        <a href="steam://run/730//+connect%20103.91.208.41:62917/" class="btn btn-multi">
-            🌐 全网线路直连<br><small>电信 / 移动 / 联通用户</small>
+        <a href="steam://run/730//+connect%20103.91.208.146:62917/" class="btn btn-multi">
+            🌐 全网直连<br><small>三网通用线路</small>
         </a>
         <a href="steam://run/730//+connect%2060.26.220.79:27020/" class="btn btn-unicom">
-            🚀 联通专属线路<br><small>仅限联通用户使用</small>
+            🚀 联通专线<br><small>联通用户首选</small>
+        </a>
+
+        <a href="steam://run/730//+connect%20103.91.208.146:58720/" class="btn btn-gotv">
+            📺 观看 GOTV<br><small>延迟观看比赛</small>
+        </a>
+
+        <a href="stats.html" class="btn btn-stats">
+            📊 战绩 Rating<br><small>查询历史表现</small>
         </a>
         <a href="https://inventory.cstrike.app/" target="_blank" class="btn btn-skin">
-            🎨 打开皮肤修改仓库<br>
+            🎨 皮肤仓库<br><small>修改武器皮肤</small>
         </a>
     </div>
 
     <div class="section">
         <h2>📌 常用比赛指令</h2>
-        <p style="font-size: 0.9em; color: var(--text-gray);">前缀支持使用 . 或 ! [cite: 1, 2]</p>
+        <p style="font-size: 0.9em; color: var(--text-gray);">前缀支持使用 . 或 !</p>
         <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">将玩家标记为准备就绪 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.unready / .ur</span><span class="cmd-desc">取消准备状态 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">双方输入可恢复当前回合备份 [cite: 2]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.stay / .switch</span><span class="cmd-desc">刀人局获胜后选择阵营 [cite: 2]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.ready / .r</span><span class="cmd-desc">将玩家标记为准备就绪</span></div>
+            <div class="cmd-item"><span class="cmd-name">.unready / .ur</span><span class="cmd-desc">取消准备状态</span></div>
+            <div class="cmd-item"><span class="cmd-name">.tac</span><span class="cmd-desc">发起战术暂停</span></div>
+            <div class="cmd-item"><span class="cmd-name">.stop</span><span class="cmd-desc">双方输入可恢复当前回合备份</span></div>
+            <div class="cmd-item"><span class="cmd-name">.stay / .switch</span><span class="cmd-desc">刀人局获胜后选择阵营</span></div>
         </div>
     </div>
 
     <div class="section">
         <h2>🛠️ 练习模式专用 (.prac)</h2>
-        <p style="font-size: 0.9em; color: var(--text-gray);">输入 .prac 开启练习模式后方可使用 [cite: 6]</p>
+        <p style="font-size: 0.9em; color: var(--text-gray);">输入 .prac 开启练习模式后方可使用</p>
         <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上一个投掷物 [cite: 5]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除机器人 [cite: 3, 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">开启无敌或防闪光干扰 [cite: 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">开启/关闭投掷物轨迹预览 [cite: 4]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.clear</span><span class="cmd-desc">清除场上所有的烟雾和火焰 [cite: 5]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.last</span><span class="cmd-desc">传送到上一次投掷的位置 [cite: 5]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.rethrow / .rt</span><span class="cmd-desc">重新投掷上一个投掷物</span></div>
+            <div class="cmd-item"><span class="cmd-name">.bot / .nobots</span><span class="cmd-desc">添加或移除机器人</span></div>
+            <div class="cmd-item"><span class="cmd-name">.god / .noflash</span><span class="cmd-desc">开启无敌或防闪光干扰</span></div>
+            <div class="cmd-item"><span class="cmd-name">.traj</span><span class="cmd-desc">开启/关闭投掷物轨迹预览</span></div>
+            <div class="cmd-item"><span class="cmd-name">.clear</span><span class="cmd-desc">清除场上所有的烟雾和火焰</span></div>
+            <div class="cmd-item"><span class="cmd-name">.last</span><span class="cmd-desc">传送到上一次投掷的位置</span></div>
         </div>
     </div>
 
     <div class="section">
         <h2>🛡️ 管理员维护指令</h2>
         <div class="cmd-grid">
-            <div class="cmd-item"><span class="cmd-name">.start / .restart</span><span class="cmd-desc">强制开始或重置比赛 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.map &lt;地图名&gt;</span><span class="cmd-desc">更换服务器当前地图 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.roundknife</span><span class="cmd-desc">开启/关闭刀人局模式 [cite: 6]</span></div>
-            <div class="cmd-item"><span class="cmd-name">.rcon &lt;命令&gt;</span><span class="cmd-desc">向服务器发送控制台指令 [cite: 7]</span></div>
+            <div class="cmd-item"><span class="cmd-name">.start / .restart</span><span class="cmd-desc">强制开始或重置比赛</span></div>
+            <div class="cmd-item"><span class="cmd-name">.map &lt;地图名&gt;</span><span class="cmd-desc">更换服务器当前地图</span></div>
+            <div class="cmd-item"><span class="cmd-name">.roundknife</span><span class="cmd-desc">开启/关闭刀人局模式</span></div>
+            <div class="cmd-item"><span class="cmd-name">.rcon &lt;命令&gt;</span><span class="cmd-desc">向服务器发送控制台指令</span></div>
         </div>
     </div>
-
 </div>
 
-
-
-</body></html>
+</body>
+</html>
