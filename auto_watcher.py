@@ -1,4 +1,5 @@
 import os
+import csv
 import json
 import re
 import time
@@ -8,168 +9,237 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # ================= 配置区域 =================
-# CSV 目录 (用于监听比赛是否彻底结束)
+# 仓库根目录
+REPO_ROOT = r"D:\CS2Server\Teio_Server"
+# 本地战绩读取目录
 CSV_DIR = r"D:\CS2Server\steamapps\common\Counter-Strike Global Offensive\game\csgo\MatchZy_Stats"
-# TXT 备份目录 (包含每回合详细数据的 csgo 根目录)
 TXT_DIR = r"D:\CS2Server\steamapps\common\Counter-Strike Global Offensive\game\csgo"
-# GitHub 数据存储目录
-GITHUB_DATA_DIR = r"D:\CS2Server\Teio_Server\data"
+
+# 纯数据存放地 (matches.json)
+GITHUB_DATA_DIR = os.path.join(REPO_ROOT, "data")
+# 静态网页存放地 (match_xx.html)
+GITHUB_WEBSITE_DIR = os.path.join(REPO_ROOT, "website")
 # ============================================
 
-def extract_val(pattern, text, default=0):
-    m = re.search(pattern, text)
-    return int(m.group(1)) if m else default
-
-def extract_str(pattern, text, default=""):
-    m = re.search(pattern, text)
-    return m.group(1) if m else default
-
 def get_final_txt_for_match(match_id):
-    """在 TXT 目录中寻找该 match_id 对应的最大回合数备份文件"""
     max_round = -1
     final_file = None
-    # 匹配文件名如: matchzy_14_0_round21.txt
     pattern = re.compile(rf'matchzy_{match_id}_\d+_round(\d+)\.txt')
-    
     if os.path.exists(TXT_DIR):
         for f in os.listdir(TXT_DIR):
             m = pattern.match(f)
             if m:
-                round_num = int(m.group(1))
-                if round_num > max_round:
-                    max_round = round_num
+                if int(m.group(1)) > max_round:
+                    max_round = int(m.group(1))
                     final_file = os.path.join(TXT_DIR, f)
     return final_file
 
-def sync_data():
-    if not os.path.exists(GITHUB_DATA_DIR):
-        os.makedirs(GITHUB_DATA_DIR)
+def generate_html(match_data):
+    """根据数据动态生成单独的比赛 HTML 网页"""
+    teams_html = ""
+    for team_name, players in match_data['teams'].items():
+        players.sort(key=lambda x: x['rating'], reverse=True)
+        rows = ""
+        for p in players:
+            r_class = "rtg-high" if p['rating'] > 1.05 else ("rtg-low" if p['rating'] < 0.95 else "")
+            rows += f"""<tr>
+                <td style="text-align:left; padding-left:15px; font-weight:bold;">{p['name']}</td>
+                <td style="color:#888;">{p['k']}-{p['d']}</td>
+                <td>{p['adr']}</td>
+                <td>{p['entry']}</td>
+                <td>{p['clutch']}</td>
+                <td style="color:#ffa726; font-weight:bold;">{p['impact']}</td>
+                <td class="{r_class}" style="font-weight:bold;">{p['rating']}</td>
+            </tr>"""
+            
+        teams_html += f"""
+        <div style="background:#252525; border-radius:4px; overflow:hidden; border:1px solid #333;">
+            <div style="padding:12px; font-weight:bold; background:#333; font-size:0.9em; border-bottom:2px solid #444;">{team_name}</div>
+            <table style="width:100%; border-collapse:collapse;">
+                <tr><th style="text-align:left; padding:10px 15px;">选手</th><th>K-D</th><th>ADR</th><th>首杀</th><th>残局</th><th>Impact</th><th>Rating</th></tr>
+                {rows}
+            </table>
+        </div>"""
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"><title>Match #{match_data['id']} Details</title>
+    <style>
+        body {{ font-family: system-ui; background: #121212; color: white; padding: 20px; }}
+        .container {{ max-width: 1000px; margin: auto; background: #1e1e1e; border-radius: 8px; padding: 20px; border: 1px solid #333; }}
+        th {{ background: #2a2a2a; color: #666; font-size: 0.75em; padding: 10px; }}
+        td {{ padding: 12px 6px; text-align: center; border-bottom: 1px solid #333; }}
+        .rtg-high {{ color: #4CAF50; }} .rtg-low {{ color: #ff5252; }}
+        .btn-back {{ color: #888; text-decoration: none; margin-bottom: 20px; display: inline-block; }}
+        .btn-back:hover {{ color: #4CAF50; }}
+        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }}
+        @media (max-width: 800px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+    </style>
+</head>
+<body>
+    <div style="max-width: 1000px; margin: auto;">
+        <a href="../stats.html" class="btn-back">← 返回战绩大厅</a>
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; color:#888; font-size:0.85em; border-bottom:1px solid #222; padding-bottom:10px; margin-bottom:20px;">
+                <span>📅 {match_data['timestamp']} &nbsp;|&nbsp; 🗺️ {match_data['map']} &nbsp;|&nbsp; ♻️ {match_data['total_rounds']} 局</span>
+                <span>ID: #{match_data['id']}</span>
+            </div>
+            <div style="text-align:center; font-size:2em; font-weight:900; margin-bottom:10px;">
+                <span style="font-size:0.4em; color:#ccc;">{match_data['team1']}</span>
+                <span style="background:#000; color:#4CAF50; padding:5px 20px; border-radius:5px; margin:0 15px;">{match_data['score1']} : {match_data['score2']}</span>
+                <span style="font-size:0.4em; color:#ccc;">{match_data['team2']}</span>
+            </div>
+            <div class="grid">{teams_html}</div>
+        </div>
+    </div>
+</body>
+</html>"""
     
-    matches = []
-    completed_match_ids = set()
+    with open(os.path.join(GITHUB_WEBSITE_DIR, f"match_{match_data['id']}.html"), "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+def sync_all():
+    """核心缝合与建站逻辑"""
+    if not os.path.exists(GITHUB_DATA_DIR): os.makedirs(GITHUB_DATA_DIR)
+    if not os.path.exists(GITHUB_WEBSITE_DIR): os.makedirs(GITHUB_WEBSITE_DIR)
     
-    # 1. 扫描 CSV 文件夹，获取所有【已彻底打完】的比赛 ID
+    matches_summary = []
+    
     for root, dirs, files in os.walk(CSV_DIR):
         for f in files:
             if f.startswith("match_data_") and f.endswith(".csv"):
-                mid_match = re.findall(r"(\d+).csv", f)
-                if mid_match:
-                    completed_match_ids.add(int(mid_match[0]))
+                mid = int(re.findall(r"(\d+).csv", f)[0])
+                csv_path = os.path.join(root, f)
+                
+                players = []
+                with open(csv_path, 'r', encoding='utf-8') as cf:
+                    reader = csv.DictReader(cf)
+                    for row in reader:
+                        r = {k.lower(): v for k, v in row.items()}
+                        if not r.get('name'): continue
+                        players.append({
+                            "name": r['name'], "team": r['team'],
+                            "k": int(r['kills']), "d": int(r['deaths']), "a": int(r['assists']),
+                            "dmg": int(r['damage']), "k3": int(r.get('enemy3ks',0) or 0),
+                            "k4": int(r.get('enemy4ks',0) or 0), "k5": int(r.get('enemy5ks',0) or 0),
+                            "entry": 0, "clutch": 0
+                        })
+                
+                txt_path = get_final_txt_for_match(mid)
+                total_rounds = 24
+                timestamp = "未知"
+                map_name = "Unknown"
+                team1, team2 = "Team_A", "Team_B"
+                s1, s2 = 0, 0
+                
+                if txt_path:
+                    with open(txt_path, 'r', encoding='utf-8', errors='ignore') as tf:
+                        txt = tf.read()
+                        
+                    m_round = re.search(r'"round"\s+"(\d+)"', txt)
+                    total_rounds = int(m_round.group(1)) if m_round else 24
                     
-    # 2. 针对每个已完成的比赛，去解析它最终回合的 txt 数据
-    for match_id in completed_match_ids:
-        txt_path = get_final_txt_for_match(match_id)
-        if not txt_path:
-            continue # 如果意外找不到对应的 txt 备份，则跳过
-            
-        try:
-            with open(txt_path, 'r', encoding='utf-8', errors='ignore') as file:
-                content = file.read()
-                
-            # 提取全局基础信息
-            timestamp = extract_str(r'"timestamp"\s+"([^"]+)"', content, "未知时间")
-            team1_name = extract_str(r'"team1"\s+"([^"]+)"', content, "TEAM_1")
-            team2_name = extract_str(r'"team2"\s+"([^"]+)"', content, "TEAM_2")
-            map_name = extract_str(r'"map"\s+"([^"]+)"', content, "Unknown")
-            total_rounds = extract_val(r'"round"\s+"(\d+)"', content, 24)
-            
-            # 自动计算总比分 (包含上下半场和加时赛)
-            t1_score, t2_score = 0, 0
-            for block in ['FirstHalfScore', 'SecondHalfScore', 'OvertimeScore']:
-                b_match = re.search(rf'"{block}"\s*{{([^}}]+)}}', content)
-                if b_match:
-                    t1_score += extract_val(r'"team1"\s+"(\d+)"', b_match.group(1))
-                    t2_score += extract_val(r'"team2"\s+"(\d+)"', b_match.group(1))
+                    timestamp = (re.search(r'"timestamp"\s+"([^"]+)"', txt) or [0,""])[1]
+                    map_name = (re.search(r'"map"\s+"([^"]+)"', txt) or [0,""])[1]
+                    team1 = (re.search(r'"team1"\s+"([^"]+)"', txt) or [0,"T1"])[1]
+                    team2 = (re.search(r'"team2"\s+"([^"]+)"', txt) or [0,"T2"])[1]
                     
-            # 分割上下半场的玩家数据，确定队伍归属
-            team2_index = content.find('"PlayersOnTeam2"')
-            if team2_index == -1: team2_index = len(content)
-            
-            players = []
-            names = [m for m in re.finditer(r'\t\t\t"name"\s+"([^"]+)"', content)]
-            for i, n_match in enumerate(names):
-                start_idx = n_match.start()
-                end_idx = names[i+1].start() if i+1 < len(names) else len(content)
-                chunk = content[start_idx:end_idx]
+                    for block in ['FirstHalfScore', 'SecondHalfScore', 'OvertimeScore']:
+                        bm = re.search(rf'"{block}"\s*{{([^}}]+)}}', txt)
+                        if bm:
+                            s1 += int((re.search(r'"team1"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
+                            s2 += int((re.search(r'"team2"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
+
+                    # 指纹匹配缝合
+                    for match in re.finditer(r'"Totals"\s*{([^}]+)}', txt):
+                        chunk = match.group(1)
+                        tk = int((re.search(r'"Kills"\s+"(\d+)"', chunk) or [0,0])[1])
+                        td = int((re.search(r'"Deaths"\s+"(\d+)"', chunk) or [0,0])[1])
+                        ta = int((re.search(r'"Assists"\s+"(\d+)"', chunk) or [0,0])[1])
+                        tdmg = int((re.search(r'"Damage"\s+"(\d+)"', chunk) or [0,0])[1])
+                        
+                        entry = int((re.search(r'"EntryWins"\s+"(\d+)"', chunk) or [0,0])[1])
+                        c1 = int((re.search(r'"1v1Wins"\s+"(\d+)"', chunk) or [0,0])[1])
+                        c2 = int((re.search(r'"1v2Wins"\s+"(\d+)"', chunk) or [0,0])[1])
+                        
+                        for p in players:
+                            if p['k'] == tk and p['d'] == td and p['a'] == ta and p['dmg'] == tdmg:
+                                p['entry'] = entry
+                                p['clutch'] = c1 + c2
+                                break
+
+                teams_dict = {}
+                for p in players:
+                    kpr = p['k'] / total_rounds
+                    apr = p['a'] / total_rounds
+                    adr = p['dmg'] / total_rounds
+                    
+                    imp = 2.13 * kpr + 0.42 * apr - 0.41 + (p['entry']/total_rounds)*0.9 + (p['clutch']/total_rounds)*0.5 + (p['k3']*0.05 + p['k4']*0.12 + p['k5']*0.25)/total_rounds
+                    
+                    kr = kpr / 0.679
+                    sr = (total_rounds - p['d']) / total_rounds / 0.317
+                    dr = adr / 80
+                    
+                    rtg = 0.175 * kr + 0.175 * sr + 0.25 * dr + 0.40 * (imp / 1.1)
+                    p['impact'] = round(imp, 2)
+                    p['rating'] = round(rtg * 1.05, 2)
+                    p['adr'] = round(adr, 1)
+                    
+                    if p['team'] not in teams_dict: teams_dict[p['team']] = []
+                    teams_dict[p['team']].append(p)
+
+                match_info = {
+                    "id": mid, "timestamp": timestamp, "map": map_name,
+                    "team1": team1, "team2": team2, "score1": s1, "score2": s2,
+                    "total_rounds": total_rounds, "teams": teams_dict
+                }
                 
-                team = team1_name if start_idx < team2_index else team2_name
-                name = n_match.group(1)
+                generate_html(match_info)
                 
-                k = extract_val(r'"kills"\s+"(\d+)"', chunk)
-                d = extract_val(r'"deaths"\s+"(\d+)"', chunk)
-                a = extract_val(r'"assists"\s+"(\d+)"', chunk)
-                k3 = extract_val(r'"enemy3Ks"\s+"(\d+)"', chunk)
-                k4 = extract_val(r'"enemy4Ks"\s+"(\d+)"', chunk)
-                k5 = extract_val(r'"enemy5Ks"\s+"(\d+)"', chunk)
-                
-                totals_match = re.search(r'"Totals"\s*{([^}]+)}', chunk)
-                totals_chunk = totals_match.group(1) if totals_match else chunk
-                
-                dmg = extract_val(r'"Damage"\s+"(\d+)"', totals_chunk)
-                entry = extract_val(r'"EntryWins"\s+"(\d+)"', totals_chunk)
-                c1v1 = extract_val(r'"1v1Wins"\s+"(\d+)"', totals_chunk)
-                c1v2 = extract_val(r'"1v2Wins"\s+"(\d+)"', totals_chunk)
-                
-                players.append({
-                    "name": name, "team": team, 
-                    "k": k, "d": d, "a": a, 
-                    "dmg": dmg, "entry": entry, "clutch": c1v1 + c1v2,
-                    "k3": k3, "k4": k4, "k5": k5
+                matches_summary.append({
+                    "id": mid, "timestamp": timestamp, "map": map_name,
+                    "team1": team1, "team2": team2, "score1": s1, "score2": s2, "total_rounds": total_rounds
                 })
-                
-            matches.append({
-                "id": match_id,
-                "timestamp": timestamp,
-                "map": map_name,
-                "team1": team1_name,
-                "team2": team2_name,
-                "team1_score": t1_score,
-                "team2_score": t2_score,
-                "total_rounds": total_rounds,
-                "players": players
-            })
-        except Exception as e:
-            print(f"解析文件 {txt_path} 时出错: {e}")
-            
-    matches.sort(key=lambda x: x['id'], reverse=True)
+
+    matches_summary.sort(key=lambda x: x['id'], reverse=True)
     with open(os.path.join(GITHUB_DATA_DIR, "matches.json"), "w", encoding="utf-8") as f:
-        json.dump(matches, f, indent=4, ensure_ascii=False)
-    print(f"📊 同步完成：共提取 {len(matches)} 场核心数据。")
+        json.dump(matches_summary, f, ensure_ascii=False)
+    
+    print(f"✅ 成功生成 {len(matches_summary)} 个比赛网页！")
 
 def run_git_push():
-    repo_root = GITHUB_DATA_DIR
     try:
-        subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
-        status = subprocess.run(["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True)
+        subprocess.run(["git", "add", "."], cwd=REPO_ROOT, check=True)
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True)
         if status.stdout.strip():
-            subprocess.run(["git", "commit", "-m", "Auto-update true HLTV stats"], cwd=repo_root, check=True)
-            subprocess.run(["git", "push"], cwd=repo_root, check=True)
-            print("🚀 数据已极速推送至云端！")
+            subprocess.run(["git", "commit", "-m", "Auto-update match stats and pages"], cwd=REPO_ROOT, check=True)
+            subprocess.run(["git", "push"], cwd=REPO_ROOT, check=True)
+            print("🚀 数据与网页已极速推送至云端！")
     except Exception as e:
         print(f"❌ Git 推送失败: {e}")
 
 def handle_new_match():
-    time.sleep(2) # 等待 CSV 彻底写入完毕
-    sync_data()
+    time.sleep(2) # 等待 CSV 彻底写入
+    print("🏁 检测到比赛结束，正在启动建站引擎...")
+    sync_all()
     run_git_push()
 
 class MatchHandler(FileSystemEventHandler):
     def on_created(self, event):
-        # 核心修复：仅监听 CSV 作为比赛结束的触发器
+        # 依然监听 CSV 作为比赛结束的信号
         if event.src_path.endswith(".csv") and "match_data_" in os.path.basename(event.src_path):
-            print(f"🏁 检测到比赛结束 (CSV已生成): {os.path.basename(event.src_path)}")
-            # 开新线程处理，防止阻塞 watchdog
             threading.Thread(target=handle_new_match).start()
 
 if __name__ == "__main__":
-    sync_data() # 启动时先基于现有的 CSV 和 TXT 算一遍存量数据
-    run_git_push()
+    print("=========================================")
+    print("   Teio Server 自动建站监控 (Pro) 已启动  ")
+    print("=========================================")
+    sync_all() # 启动时先整理一遍现有的
     
     observer = Observer()
-    # 监听 CSV 目录
     observer.schedule(MatchHandler(), CSV_DIR, recursive=True)
     observer.start()
-    print("👀 战绩监控引擎 (完美版) 已启动，正在等待比赛结束...")
     try:
         while True: time.sleep(1)
     except KeyboardInterrupt: observer.stop()
