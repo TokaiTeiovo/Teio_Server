@@ -28,35 +28,42 @@
         <div id="match-list">正在极速加载比赛列表...</div>
     </div>
 
-<script>
-    async function loadMatches() {
-        try {
-            // 现在只读取极度轻量的 JSON，瞬间加载
-            const res = await fetch('data/matches.json');
-            const matches = await res.json();
-            const list = document.getElementById('match-list');
-            list.innerHTML = '';
-
-            matches.forEach(m => {
-                const t1Win = m.score1 > m.score2;
-                const t2Win = m.score2 > m.score1;
-                
-                list.innerHTML += `
-                    <a href="website/match_${m.id}.html" class="match-card">
-                        <div class="match-meta">
-                            <span>📅 ${m.timestamp} &nbsp;|&nbsp; 🗺️ ${m.map.replace('de_', '').toUpperCase()} &nbsp;|&nbsp; ♻️ ${m.total_rounds} 局</span>
-                            <span>ID: #${m.id}</span>
-                        </div>
-                        <div class="score-display">
-                            <span class="team-name ${t1Win ? 'winner' : ''}">${m.team1}</span>
-                            <span class="score-val">${m.score1} : ${m.score2}</span>
-                            <span class="team-name ${t2Win ? 'winner' : ''}">${m.team2}</span>
-                        </div>
-                    </a>`;
-            });
-        } catch (e) { document.getElementById('match-list').innerHTML = "暂无战绩数据。"; }
-    }
-    loadMatches();
-</script>
+    <script>
+        async function loadMatches() {
+            try {
+                // 核心修复 1：在 URL 后面加时间戳 (?t=...)，强制浏览器每次都拉取最新战绩，彻底告别 GitHub 缓存延迟！
+                const res = await fetch('data/matches.json?t=' + new Date().getTime());
+                const matches = await res.json();
+                const list = document.getElementById('match-list');
+                list.innerHTML = '';
+    
+                matches.forEach(m => {
+                    // 核心修复 2：完美兼容新老 Python 脚本的字段名（不管是 score1 还是 team1_score 都能精准读取）
+                    const s1 = m.score1 !== undefined ? m.score1 : (m.team1_score !== undefined ? m.team1_score : 0);
+                    const s2 = m.score2 !== undefined ? m.score2 : (m.team2_score !== undefined ? m.team2_score : 0);
+                    
+                    const t1Win = s1 > s2;
+                    const t2Win = s2 > s1;
+                    
+                    list.innerHTML += `
+                        <a href="website/match_${m.id}.html" class="match-card">
+                            <div class="match-meta">
+                                <span>结束时间: ${m.timestamp || "未记录"} &nbsp;|&nbsp; 地图: ${(m.map || "未知").replace('de_', '').toUpperCase()} &nbsp;|&nbsp; 总局数: ${m.total_rounds || 24} 局</span>
+                                <span>ID: #${m.id}</span>
+                            </div>
+                            <div class="score-display">
+                                <span class="team-name ${t1Win ? 'winner' : ''}">${m.team1}</span>
+                                <span class="score-val">${s1} : ${s2}</span>
+                                <span class="team-name ${t2Win ? 'winner' : ''}">${m.team2}</span>
+                            </div>
+                        </a>`;
+                });
+            } catch (e) { 
+                console.error(e);
+                document.getElementById('match-list').innerHTML = "暂无战绩数据或读取失败。"; 
+            }
+        }
+        loadMatches();
+    </script>
 </body>
 </html>

@@ -32,6 +32,74 @@ def get_final_txt_for_match(match_id):
     return final_file
 
 def generate_html(match_data):
+    """根据数据动态生成单独的比赛 HTML 网页 (宽屏优化版)"""
+    teams_html = ""
+    for team_name, players in match_data['teams'].items():
+        players.sort(key=lambda x: x['rating'], reverse=True)
+        rows = ""
+        for p in players:
+            r_class = "rtg-high" if p['rating'] > 1.05 else ("rtg-low" if p['rating'] < 0.95 else "")
+            # 核心修复 2：加入 white-space: nowrap 禁止换行，并使用 text-overflow: ellipsis 让超长名字显示为省略号
+            rows += f"""<tr>
+                <td style="text-align:left; padding-left:15px; font-weight:bold; white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="{p['name']}">{p['name']}</td>
+                <td style="color:#888; white-space:nowrap;">{p['k']} - {p['d']}</td>
+                <td>{p['adr']}</td>
+                <td>{p['entry']}</td>
+                <td>{p['clutch']}</td>
+                <td style="color:#ffa726; font-weight:bold;">{p['impact']}</td>
+                <td class="{r_class}" style="font-weight:bold; font-size:1.1em;">{p['rating']}</td>
+            </tr>"""
+            
+        teams_html += f"""
+        <div style="background:#252525; border-radius:6px; overflow:hidden; border:1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            <div style="padding:15px; font-weight:bold; background:#333; font-size:1.1em; border-bottom:2px solid #555; text-align:center;">{team_name}</div>
+            <table style="width:100%; border-collapse:collapse; table-layout: auto;">
+                <tr><th style="text-align:left; padding:12px 15px;">选手</th><th>K-D</th><th>ADR</th><th>首杀</th><th>残局</th><th>Impact</th><th>Rating</th></tr>
+                {rows}
+            </table>
+        </div>"""
+
+    # 核心修复 1：将 max-width 从 1000px 扩大到 1400px
+    html_content = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8"><title>Match #{match_data['id']} Details</title>
+    <style>
+        body {{ font-family: 'Segoe UI', system-ui, sans-serif; background: #121212; color: white; padding: 30px 20px; margin: 0; }}
+        /* 扩大容器宽度，适应现代宽屏 */
+        .container {{ max-width: 1400px; margin: auto; background: #1e1e1e; border-radius: 12px; padding: 30px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }}
+        th {{ background: #2a2a2a; color: #888; font-size: 0.85em; padding: 12px 10px; white-space: nowrap; }}
+        td {{ padding: 14px 10px; text-align: center; border-bottom: 1px solid #333; }}
+        .rtg-high {{ color: #4CAF50; }} .rtg-low {{ color: #ff5252; }}
+        .btn-back {{ color: #aaa; text-decoration: none; margin-bottom: 20px; display: inline-block; font-size: 1.1em; transition: 0.2s; }}
+        .btn-back:hover {{ color: #4CAF50; transform: translateX(-5px); }}
+        .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px; }}
+        @media (max-width: 1100px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+    </style>
+</head>
+<body>
+    <div style="max-width: 1400px; margin: auto;">
+        <a href="../stats.html" class="btn-back">← 返回战绩大厅</a>
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; color:#888; font-size:0.95em; border-bottom:1px solid #222; padding-bottom:15px; margin-bottom:25px;">
+                <span>结束时间: {match_data['timestamp']} &nbsp;|&nbsp; 地图: {match_data['map']} &nbsp;|&nbsp; 总局数: {match_data['total_rounds']} 局</span>
+                <span>ID: #{match_data['id']}</span>
+            </div>
+            <div style="text-align:center; font-size:2.5em; font-weight:900; margin-bottom:30px; display:flex; justify-content:center; align-items:center; gap:30px;">
+                <span style="font-size:0.4em; color:#ccc; width:250px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{match_data['team1']}</span>
+                <span style="background:#000; color:#4CAF50; padding:10px 30px; border-radius:8px; border: 1px solid #222;">{match_data['score1']} : {match_data['score2']}</span>
+                <span style="font-size:0.4em; color:#ccc; width:250px; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{match_data['team2']}</span>
+            </div>
+            <div class="grid">{teams_html}</div>
+        </div>
+    </div>
+</body>
+</html>"""
+    
+    # 写入到 website/ 文件夹中
+    import os
+    with open(os.path.join(GITHUB_WEBSITE_DIR, f"match_{match_data['id']}.html"), "w", encoding="utf-8") as f:
+        f.write(html_content)
     """根据数据动态生成单独的比赛 HTML 网页"""
     teams_html = ""
     for team_name, players in match_data['teams'].items():
