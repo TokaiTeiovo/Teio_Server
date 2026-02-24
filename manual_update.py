@@ -27,7 +27,7 @@ def get_final_txt_for_match(match_id):
     return final_file
 
 def generate_html(match_data):
-    """生成 HLTV 风格：上下队伍 + 中间 24 回合时间轴"""
+    """生成 HLTV 风格：上下队伍 + 严格 24 槽位时间轴"""
     
     t1_name = match_data.get('team1', 'Team_1')
     t2_name = match_data.get('team2', 'Team_2')
@@ -75,9 +75,10 @@ def generate_html(match_data):
         </table>
     </div>"""
 
-    # 构建中间的时间轴
+    # 严格渲染 24 个格子
     blocks_html = ""
-    for t1_win in match_data['timeline']:
+    for i in range(24):
+        t1_win = match_data['timeline'][i]
         if t1_win is True: 
             blocks_html += """
             <div style="position: relative; z-index: 2; flex: 1; height: 40px; display: flex; flex-direction: column; justify-content: center; margin: 0 2px;">
@@ -90,7 +91,7 @@ def generate_html(match_data):
                 <div style="height: 18px; width: 100%; margin-bottom: 4px;"></div>
                 <div style="height: 18px; width: 100%; background: #ff5252; border-radius: 2px;"></div>
             </div>"""
-        else: # 未进行的回合，保留贯穿的空缺灰线
+        else: # 真正未进行的回合，空缺，仅留灰线
             blocks_html += """
             <div style="position: relative; z-index: 2; flex: 1; height: 40px; margin: 0 2px;"></div>"""
 
@@ -174,15 +175,12 @@ def sync_all():
                 map_name = "Unknown"
                 team1, team2 = "Team_A", "Team_B"
                 s1, s2 = 0, 0
-                timeline = [None] * 24 
+                timeline = [None] * 24  # 严格锁定 24 回合
                 
                 if txt_path:
                     with open(txt_path, 'r', encoding='utf-8', errors='ignore') as tf:
                         txt = tf.read()
                         
-                    m_round = re.search(r'"round"\s+"(\d+)"', txt)
-                    total_rounds = int(m_round.group(1)) if m_round else 24
-                    
                     timestamp = (re.search(r'"timestamp"\s+"([^"]+)"', txt) or [0,""])[1]
                     map_name = (re.search(r'"map"\s+"([^"]+)"', txt) or [0,""])[1]
                     team1 = (re.search(r'"team1"\s+"([^"]+)"', txt) or [0,"T1"])[1]
@@ -198,6 +196,9 @@ def sync_all():
                             s1 += int((re.search(r'"team1"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
                             s2 += int((re.search(r'"team2"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
 
+                    # 绝对真理：用最终得分相加，确定真正的比赛回合数！
+                    real_total_rounds = s1 + s2 if (s1 + s2) > 0 else 24
+
                     rr_match = re.search(r'"RoundResults"\s*{([^}]+)}', txt)
                     results = [-1] * 24
                     if rr_match:
@@ -206,9 +207,10 @@ def sync_all():
                             m = re.search(rf'"round{i}"\s+"(\d+)"', rr_chunk)
                             if m: results[i-1] = int(m.group(1))
 
-                    group_A = [1, 3, 7, 8, 12, 0]
+                    # 移除 0 (防坑)，只收录真实的 T 阵营胜利代码
+                    group_A = [1, 2, 3, 9] 
                     a_h1 = sum(1 for r in results[:12] if r in group_A)
-                    b_h1 = sum(1 for r in results[:12] if r != -1 and r not in group_A)
+                    b_h1 = sum(1 for r in results[:12] if r != -1 and r != 0 and r not in group_A)
                     
                     t1_is_A_in_h1 = True
                     if a_h1 == h1_t1 and b_h1 != h1_t1: t1_is_A_in_h1 = True
@@ -216,21 +218,36 @@ def sync_all():
                     else: 
                         h2_t1, h2_t2 = s1 - h1_t1, s2 - h1_t2
                         a_h2 = sum(1 for r in results[12:24] if r in group_A)
-                        b_h2 = sum(1 for r in results[12:24] if r != -1 and r not in group_A)
+                        b_h2 = sum(1 for r in results[12:24] if r != -1 and r != 0 and r not in group_A)
                         if a_h2 == h2_t2 and b_h2 != h2_t2: t1_is_A_in_h1 = True
                         elif b_h2 == h2_t2 and a_h2 != h2_t2: t1_is_A_in_h1 = False
 
-                    # 🌟 核心修复点：强制加入总回合数（total_rounds）截断逻辑 🌟
-                    for i, r in enumerate(results):
-                        # 如果当前格子超过了真实的总回合数，强制置空（显示灰色虚位）
-                        if i >= total_rounds:
+                    # 🚨 终极截断修复：超出绝对回合数的，一律置为 None（空位）
+                    for i in range(24):
+                        if i >= real_total_rounds:
                             timeline[i] = None
                             continue
                             
-                        if r == -1: continue
+                        r = results[i]
+                        # 防范 MatchZy 的 0 占位符和最后一回合未记录的 bug
+                        if r == -1 or r == 0: 
+                            continue
+
                         is_A = r in group_A
                         if i < 12: timeline[i] = (is_A == t1_is_A_in_h1)
                         else: timeline[i] = (is_A != t1_is_A_in_h1)
+
+                    # 🤖 自动疗伤系统：如果 MatchZy 没记录完最后一回合，我们用最终比分把它逆推补齐！
+                    t1_wins_found = timeline.count(True)
+                    t2_wins_found = timeline.count(False)
+                    for i in range(min(24, real_total_rounds)):
+                        if timeline[i] is None:
+                            if t1_wins_found < s1:
+                                timeline[i] = True
+                                t1_wins_found += 1
+                            else:
+                                timeline[i] = False
+                                t2_wins_found += 1
 
                     for match in re.finditer(r'"Totals"\s*{([^}]+)}', txt):
                         chunk = match.group(1)
@@ -250,13 +267,13 @@ def sync_all():
 
                 teams_dict = {}
                 for p in players:
-                    kpr = p['k'] / total_rounds
-                    apr = p['a'] / total_rounds
-                    adr = p['dmg'] / total_rounds
+                    kpr = p['k'] / real_total_rounds
+                    apr = p['a'] / real_total_rounds
+                    adr = p['dmg'] / real_total_rounds
                     
-                    imp = 2.13 * kpr + 0.42 * apr - 0.41 + (p['entry']/total_rounds)*0.9 + (p['clutch']/total_rounds)*0.5 + (p['k3']*0.05 + p['k4']*0.12 + p['k5']*0.25)/total_rounds
+                    imp = 2.13 * kpr + 0.42 * apr - 0.41 + (p['entry']/real_total_rounds)*0.9 + (p['clutch']/real_total_rounds)*0.5 + (p['k3']*0.05 + p['k4']*0.12 + p['k5']*0.25)/real_total_rounds
                     kr = kpr / 0.679
-                    sr = (total_rounds - p['d']) / total_rounds / 0.317
+                    sr = (real_total_rounds - p['d']) / real_total_rounds / 0.317
                     dr = adr / 80
                     
                     rtg = 0.175 * kr + 0.175 * sr + 0.25 * dr + 0.40 * (imp / 1.1)
@@ -270,7 +287,7 @@ def sync_all():
                 match_info = {
                     "id": mid, "timestamp": timestamp, "map": map_name,
                     "team1": team1, "team2": team2, "score1": s1, "score2": s2,
-                    "total_rounds": total_rounds, "teams": teams_dict,
+                    "total_rounds": real_total_rounds, "teams": teams_dict, # 顶部显示也同步为真实的局数
                     "timeline": timeline 
                 }
                 
@@ -278,7 +295,7 @@ def sync_all():
                 
                 matches_summary.append({
                     "id": mid, "timestamp": timestamp, "map": map_name,
-                    "team1": team1, "team2": team2, "score1": s1, "score2": s2, "total_rounds": total_rounds
+                    "team1": team1, "team2": team2, "score1": s1, "score2": s2, "total_rounds": real_total_rounds
                 })
 
     matches_summary.sort(key=lambda x: x['id'], reverse=True)
@@ -294,7 +311,7 @@ if __name__ == "__main__":
         subprocess.run(["git", "add", "."], cwd=REPO_ROOT, check=True)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True)
         if status.stdout.strip():
-            subprocess.run(["git", "commit", "-m", "Fix: Cutoff timeline correctly"], cwd=REPO_ROOT, check=True)
+            subprocess.run(["git", "commit", "-m", "Fix: Strict 24 slots & precise round truncation"], cwd=REPO_ROOT, check=True)
             subprocess.run(["git", "push"], cwd=REPO_ROOT, check=True)
             print("🎉 同步完成！前往网页点击体验 HLTV 风格赛果吧！")
         else:
