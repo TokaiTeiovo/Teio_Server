@@ -148,7 +148,7 @@ def generate_html(match_data):
         <a href="../stats.html" class="btn-back">← 返回战绩大厅</a>
         <div class="container">
             <div style="display:flex; justify-content:space-between; color:#888; font-size:0.85em; border-bottom:1px solid #222; padding-bottom:10px; margin-bottom:20px;">
-                <span>📅 {match_data['timestamp']} &nbsp;|&nbsp; 🗺️ {match_data['map']} &nbsp;|&nbsp; ♻️ {match_data['total_rounds']} 局</span>
+                <span>结束时间: {match_data['timestamp']} &nbsp;|&nbsp; 地图: {match_data['map']} &nbsp;|&nbsp; 总局数: {match_data['total_rounds']} 局</span>
                 <span>ID: #{match_data['id']}</span>
             </div>
             <div style="text-align:center; font-size:2em; font-weight:900; margin-bottom:10px;">
