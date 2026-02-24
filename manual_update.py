@@ -29,11 +29,9 @@ def get_final_txt_for_match(match_id):
 def generate_html(match_data):
     """生成 HLTV 风格：上下队伍 + 中间 24 回合时间轴"""
     
-    # 提取两支队伍的名称与数据
     t1_name = match_data.get('team1', 'Team_1')
     t2_name = match_data.get('team2', 'Team_2')
     
-    # 防止名字错位
     t_keys = list(match_data['teams'].keys())
     if t1_name not in t_keys and len(t_keys) > 0: t1_name = t_keys[0]
     if t2_name not in t_keys and len(t_keys) > 1: t2_name = t_keys[1]
@@ -43,7 +41,6 @@ def generate_html(match_data):
     t1_players.sort(key=lambda x: x['rating'], reverse=True)
     t2_players.sort(key=lambda x: x['rating'], reverse=True)
 
-    # 渲染单队表格的方法 (按照你要求的列顺序)
     def build_rows(players):
         rows = ""
         for p in players:
@@ -60,7 +57,6 @@ def generate_html(match_data):
             </tr>"""
         return rows
 
-    # 上方队伍 (Team 1 - 蓝色风格)
     t1_html = f"""
     <div style="background:#252525; border-radius:6px; overflow:hidden; border:1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
         <div style="padding:15px; font-weight:bold; background:#2a2a2a; font-size:1.1em; border-bottom:2px solid #4a90e2; color:#4a90e2;">{t1_name}</div>
@@ -70,7 +66,6 @@ def generate_html(match_data):
         </table>
     </div>"""
 
-    # 下方队伍 (Team 2 - 红色风格)
     t2_html = f"""
     <div style="background:#252525; border-radius:6px; overflow:hidden; border:1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
         <div style="padding:15px; font-weight:bold; background:#2a2a2a; font-size:1.1em; border-bottom:2px solid #ff5252; color:#ff5252;">{t2_name}</div>
@@ -80,22 +75,22 @@ def generate_html(match_data):
         </table>
     </div>"""
 
-    # 构建中间的时间轴 (严格限制 24 回合)
+    # 构建中间的时间轴
     blocks_html = ""
     for t1_win in match_data['timeline']:
-        if t1_win is True:  # Team 1 赢，蓝块在上方
+        if t1_win is True: 
             blocks_html += """
             <div style="position: relative; z-index: 2; flex: 1; height: 40px; display: flex; flex-direction: column; justify-content: center; margin: 0 2px;">
                 <div style="height: 18px; width: 100%; background: #4a90e2; border-radius: 2px; margin-bottom: 4px;"></div>
                 <div style="height: 18px; width: 100%;"></div>
             </div>"""
-        elif t1_win is False: # Team 2 赢，红块在下方
+        elif t1_win is False: 
             blocks_html += """
             <div style="position: relative; z-index: 2; flex: 1; height: 40px; display: flex; flex-direction: column; justify-content: center; margin: 0 2px;">
                 <div style="height: 18px; width: 100%; margin-bottom: 4px;"></div>
                 <div style="height: 18px; width: 100%; background: #ff5252; border-radius: 2px;"></div>
             </div>"""
-        else: # 未进行的回合，保留空缺
+        else: # 未进行的回合，保留贯穿的空缺灰线
             blocks_html += """
             <div style="position: relative; z-index: 2; flex: 1; height: 40px; margin: 0 2px;"></div>"""
 
@@ -106,7 +101,6 @@ def generate_html(match_data):
     </div>
     """
 
-    # 拼装网页 (将宽度调整为 1100px 适合上下布局)
     html_content = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -180,7 +174,7 @@ def sync_all():
                 map_name = "Unknown"
                 team1, team2 = "Team_A", "Team_B"
                 s1, s2 = 0, 0
-                timeline = [None] * 24  # 初始化 24 回合为空缺状态
+                timeline = [None] * 24 
                 
                 if txt_path:
                     with open(txt_path, 'r', encoding='utf-8', errors='ignore') as tf:
@@ -194,7 +188,6 @@ def sync_all():
                     team1 = (re.search(r'"team1"\s+"([^"]+)"', txt) or [0,"T1"])[1]
                     team2 = (re.search(r'"team2"\s+"([^"]+)"', txt) or [0,"T2"])[1]
                     
-                    # 抓取上半场比分用于侧写边阵营
                     fh_match = re.search(r'"FirstHalfScore"\s*{([^}]+)}', txt)
                     h1_t1 = int((re.search(r'"team1"\s+"(\d+)"', fh_match.group(1)) or [0,0])[1]) if fh_match else 0
                     h1_t2 = int((re.search(r'"team2"\s+"(\d+)"', fh_match.group(1)) or [0,0])[1]) if fh_match else 0
@@ -205,7 +198,6 @@ def sync_all():
                             s1 += int((re.search(r'"team1"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
                             s2 += int((re.search(r'"team2"\s+"(\d+)"', bm.group(1)) or [0,0])[1])
 
-                    # 智能解析 24 回合时间轴
                     rr_match = re.search(r'"RoundResults"\s*{([^}]+)}', txt)
                     results = [-1] * 24
                     if rr_match:
@@ -214,7 +206,6 @@ def sync_all():
                             m = re.search(rf'"round{i}"\s+"(\d+)"', rr_chunk)
                             if m: results[i-1] = int(m.group(1))
 
-                    # 阵营胜负逆推核心算法
                     group_A = [1, 3, 7, 8, 12, 0]
                     a_h1 = sum(1 for r in results[:12] if r in group_A)
                     b_h1 = sum(1 for r in results[:12] if r != -1 and r not in group_A)
@@ -222,21 +213,25 @@ def sync_all():
                     t1_is_A_in_h1 = True
                     if a_h1 == h1_t1 and b_h1 != h1_t1: t1_is_A_in_h1 = True
                     elif b_h1 == h1_t1 and a_h1 != h1_t1: t1_is_A_in_h1 = False
-                    else: # 如果上半场平局，用下半场打破僵局
+                    else: 
                         h2_t1, h2_t2 = s1 - h1_t1, s2 - h1_t2
                         a_h2 = sum(1 for r in results[12:24] if r in group_A)
                         b_h2 = sum(1 for r in results[12:24] if r != -1 and r not in group_A)
                         if a_h2 == h2_t2 and b_h2 != h2_t2: t1_is_A_in_h1 = True
                         elif b_h2 == h2_t2 and a_h2 != h2_t2: t1_is_A_in_h1 = False
 
-                    # 填充前 24 回合的亮灯逻辑
+                    # 🌟 核心修复点：强制加入总回合数（total_rounds）截断逻辑 🌟
                     for i, r in enumerate(results):
+                        # 如果当前格子超过了真实的总回合数，强制置空（显示灰色虚位）
+                        if i >= total_rounds:
+                            timeline[i] = None
+                            continue
+                            
                         if r == -1: continue
                         is_A = r in group_A
                         if i < 12: timeline[i] = (is_A == t1_is_A_in_h1)
-                        else: timeline[i] = (is_A != t1_is_A_in_h1) # 下半场换边
+                        else: timeline[i] = (is_A != t1_is_A_in_h1)
 
-                    # 缝合玩家首杀与残局
                     for match in re.finditer(r'"Totals"\s*{([^}]+)}', txt):
                         chunk = match.group(1)
                         tk = int((re.search(r'"Kills"\s+"(\d+)"', chunk) or [0,0])[1])
@@ -276,7 +271,7 @@ def sync_all():
                     "id": mid, "timestamp": timestamp, "map": map_name,
                     "team1": team1, "team2": team2, "score1": s1, "score2": s2,
                     "total_rounds": total_rounds, "teams": teams_dict,
-                    "timeline": timeline # 送入时间轴数据
+                    "timeline": timeline 
                 }
                 
                 generate_html(match_info)
@@ -299,11 +294,10 @@ if __name__ == "__main__":
         subprocess.run(["git", "add", "."], cwd=REPO_ROOT, check=True)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True)
         if status.stdout.strip():
-            subprocess.run(["git", "commit", "-m", "Revamp to HLTV Vertical Layout & Timeline"], cwd=REPO_ROOT, check=True)
+            subprocess.run(["git", "commit", "-m", "Fix: Cutoff timeline correctly"], cwd=REPO_ROOT, check=True)
             subprocess.run(["git", "push"], cwd=REPO_ROOT, check=True)
             print("🎉 同步完成！前往网页点击体验 HLTV 风格赛果吧！")
         else:
             print("✨ 当前数据已经是最新。")
     except Exception as e:
         print(f"❌ Git 推送遇到问题: {e}")
-    input("按回车键退出...")
