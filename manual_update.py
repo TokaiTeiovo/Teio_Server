@@ -312,7 +312,7 @@ if __name__ == "__main__":
         subprocess.run(["git", "add", "."], cwd=REPO_ROOT, check=True)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=REPO_ROOT, capture_output=True, text=True)
         if status.stdout.strip():
-            subprocess.run(["git", "commit", "-m", "Fix: Strict 24 slots & precise round truncation"], cwd=REPO_ROOT, check=True)
+            subprocess.run(["git", "commit", "-m", "Auto_Update"], cwd=REPO_ROOT, check=True)
             subprocess.run(["git", "push"], cwd=REPO_ROOT, check=True)
             print("🎉 同步完成！前往网页点击体验 HLTV 风格赛果吧！")
         else:
