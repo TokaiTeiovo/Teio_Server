@@ -12,7 +12,7 @@
         header { text-align: center; padding: 40px 0; }
         h1 { color: var(--main-green); font-size: 2.5em; margin-bottom: 10px; }
         
-        /* 动态网格布局：自动适配 5 个按钮 */
+        /* 动态网格布局：自动适配多个按钮 */
         .action-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }
         
         .btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; border-radius: 12px; text-decoration: none; color: white; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; text-align: center; min-height: 80px; }
@@ -22,6 +22,7 @@
         /* 颜色方案 */
         .btn-multi { background: linear-gradient(135deg, #2e7d32, #43a047); }    /* 全网：深绿 */
         .btn-unicom { background: linear-gradient(135deg, #558b2f, #689f38); }   /* 联通：浅绿 */
+        .btn-backup { background: linear-gradient(135deg, #00838f, #00acc1); }   /* 备用：青色 */
         .btn-gotv { background: linear-gradient(135deg, #f57c00, #ff9800); }     /* GOTV：橙色 */
         .btn-stats { background: linear-gradient(135deg, #7b1fa2, #9c27b0); }    /* 战绩：紫色 */
         .btn-skin { background: linear-gradient(135deg, #1565c0, #1e88e5); }     /* 皮肤：蓝色 */
@@ -47,6 +48,10 @@
         </a>
         <a href="steam://run/730//+connect%2060.26.220.62:39188/" class="btn btn-unicom">
             🚀 联通专线<br><small>联通用户首选</small>
+        </a>
+        
+        <a href="steam://run/730//+connect%20frp-ten.com:49832/" class="btn btn-backup">
+            🔀 备用线路<br><small>尝试使用</small>
         </a>
 
         <a href="steam://run/730//+connect%20103.91.208.146:58720/" class="btn btn-gotv">
