@@ -1,0 +1,24 @@
+=========================================
+   Teio Server 自动建站监控 (Pro) 已启动  
+=========================================
+✅ 成功提取并生成 0 个HLTV风格比赛网页！
+Traceback (most recent call last):
+  File "/mnt/d/CS2Server/Teio_Server/auto_watcher.py", line 347, in <module>
+    observer.start()
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/api.py", line 264, in start
+    emitter.start()
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/utils/__init__.py", line 75, in start
+    self.on_thread_start()
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/inotify.py", line 119, in on_thread_start
+    self._inotify = InotifyBuffer(path, recursive=self.watch.is_recursive, event_mask=event_mask)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/inotify_buffer.py", line 30, in __init__
+    self._inotify = Inotify(path, recursive=recursive, event_mask=event_mask)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/inotify_c.py", line 187, in __init__
+    self._add_watch(path, event_mask)
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/inotify_c.py", line 424, in _add_watch
+    Inotify._raise_error()
+  File "/home/tokaiteio/.local/lib/python3.12/site-packages/watchdog/observers/inotify_c.py", line 441, in _raise_error
+    raise OSError(err, os.strerror(err))
+FileNotFoundError: [Errno 2] No such file or directory
